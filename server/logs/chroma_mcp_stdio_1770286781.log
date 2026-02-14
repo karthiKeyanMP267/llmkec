@@ -1,0 +1,40 @@
+2026-02-05 15:49:41,906 - root - INFO - STDIO MODE: Logging configured - all logs redirected to D:\opencode\server\logs\chroma_mcp_stdio_1770286781.log
+2026-02-05 15:49:41,906 - chromamcp.unconfigured - WARNING - Logger requested before main configuration.
+2026-02-05 15:49:41,906 - root - INFO - Log retention policy set to 7 days
+2026-02-05 15:49:41,908 - root - INFO - Monkey patched logging.getLogger to ensure all future loggers use file output only
+2026-02-05 15:49:41,927 - chromamcp.utils.set_server_config - INFO - Global server config set: ChromaClientConfig(client_type='persistent', embedding_function_name='default', data_dir='D:/chromadb/llmAgent/day8/chroma_data', host=None, port=8000, ssl=True, tenant=None, database=None, api_key=None, use_cpu_provider=None)
+2026-02-05 15:49:41,930 - chromamcp - INFO - Chroma client configuration set: persistent
+2026-02-05 15:49:41,930 - chromamcp.utils.chroma_client - INFO - Instantiating embedding function: 'default'
+2026-02-05 15:49:41,973 - chromamcp.utils.chroma_client - INFO - Successfully instantiated embedding function: 'default'
+2026-02-05 15:49:41,975 - chromamcp - INFO - Initializing persistent ChromaDB client at: D:/chromadb/llmAgent/day8/chroma_data
+2026-02-05 15:49:43,150 - chromamcp - INFO - Ensuring essential ChromaDB collections exist...
+2026-02-05 15:49:43,156 - chromamcp - INFO - ChromaDB client (persistent) initialized successfully.
+2026-02-05 15:49:43,156 - chromamcp - INFO - Server configured (CPU provider: auto-detected)
+2026-02-05 15:49:43,156 - chromamcp - INFO - Logs will be saved to: D:\opencode\server\logs
+2026-02-05 15:49:43,159 - chromamcp - INFO - Chroma MCP server v0.2.28 started. Using stdio transport.
+2026-02-05 15:49:43,191 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-05 15:49:43,471 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-05 15:49:50,546 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-05 15:49:53,220 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-05 15:49:53,854 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-05 15:51:37,522 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-05 15:51:41,373 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-05 15:51:43,057 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-05 15:51:46,846 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-05 15:51:46,859 - chromamcp.tools.document.query_where - INFO - Querying 'kvit_policies' with where filter. N_results: 5. Using default includes.
+2026-02-05 15:51:47,392 - chromamcp.tools.document.query_where - INFO - Query with where filter successful on 'kvit_policies', returning 4 result sets.
+2026-02-05 15:51:47,832 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-05 15:51:54,638 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-05 15:51:54,643 - chromamcp.tools.document.get_all - INFO - Getting all documents from 'kvit_policies'. Limit: 20, Offset: 0. Using default includes.
+2026-02-05 15:51:54,700 - chromamcp.tools.document.get_all - INFO - Successfully retrieved 20 documents from 'kvit_policies'.
+2026-02-05 15:51:55,276 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-05 15:52:04,922 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-05 15:52:06,602 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-05 15:52:10,459 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-05 15:52:10,466 - chromamcp.tools.document.get_ids - INFO - Getting documents by 5 IDs from 'kvit_policies'. Using default includes.
+2026-02-05 15:52:10,524 - chromamcp.tools.document.get_ids - INFO - Successfully retrieved 5 documents by ID from 'kvit_policies'.
+2026-02-05 15:52:11,088 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-05 15:52:40,190 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-05 15:52:40,200 - chromamcp.tools.document.get_ids - INFO - Getting documents by 11 IDs from 'kvit_policies'. Using default includes.
+2026-02-05 15:52:40,205 - chromamcp.tools.document.get_ids - INFO - Successfully retrieved 11 documents by ID from 'kvit_policies'.
+2026-02-05 15:52:40,842 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest

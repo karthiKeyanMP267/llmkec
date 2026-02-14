@@ -1,0 +1,32 @@
+2026-02-05 22:16:01,426 - root - INFO - STDIO MODE: Logging configured - all logs redirected to D:\opencode\server\logs\chroma_mcp_stdio_1770309961.log
+2026-02-05 22:16:01,426 - chromamcp.unconfigured - WARNING - Logger requested before main configuration.
+2026-02-05 22:16:01,426 - root - INFO - Log retention policy set to 7 days
+2026-02-05 22:16:01,429 - root - INFO - Monkey patched logging.getLogger to ensure all future loggers use file output only
+2026-02-05 22:16:01,450 - chromamcp.utils.set_server_config - INFO - Global server config set: ChromaClientConfig(client_type='persistent', embedding_function_name='default', data_dir='D:/chromadb/llmAgent/day8/chroma_data', host=None, port=8000, ssl=True, tenant=None, database=None, api_key=None, use_cpu_provider=None)
+2026-02-05 22:16:01,452 - chromamcp - INFO - Chroma client configuration set: persistent
+2026-02-05 22:16:01,452 - chromamcp.utils.chroma_client - INFO - Instantiating embedding function: 'default'
+2026-02-05 22:16:01,502 - chromamcp.utils.chroma_client - INFO - Successfully instantiated embedding function: 'default'
+2026-02-05 22:16:01,503 - chromamcp - INFO - Initializing persistent ChromaDB client at: D:/chromadb/llmAgent/day8/chroma_data
+2026-02-05 22:16:03,001 - chromamcp - INFO - Ensuring essential ChromaDB collections exist...
+2026-02-05 22:16:03,007 - chromamcp - INFO - ChromaDB client (persistent) initialized successfully.
+2026-02-05 22:16:03,007 - chromamcp - INFO - Server configured (CPU provider: auto-detected)
+2026-02-05 22:16:03,007 - chromamcp - INFO - Logs will be saved to: D:\opencode\server\logs
+2026-02-05 22:16:03,010 - chromamcp - INFO - Chroma MCP server v0.2.28 started. Using stdio transport.
+2026-02-05 22:16:03,051 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-05 22:16:32,230 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-05 22:16:47,954 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-05 22:16:48,448 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-05 22:16:57,782 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-05 22:16:59,585 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-05 22:17:04,924 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-05 22:17:04,934 - chromamcp.tools.document.get_ids - INFO - Getting documents by 5 IDs from 'kvit_policies'. Using default includes.
+2026-02-05 22:17:04,976 - chromamcp.tools.document.get_ids - INFO - Successfully retrieved 5 documents by ID from 'kvit_policies'.
+2026-02-05 22:17:05,413 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-05 22:17:10,063 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-05 22:17:10,070 - chromamcp.tools.document.get_ids_all - INFO - Getting documents by 6 IDs from 'kvit_policies'. Including: ['documents', 'metadatas', 'embeddings', 'uris', 'data']
+2026-02-05 22:17:10,071 - chromamcp.tools.document.get_ids_all - WARNING - ValueError getting URIs/data in 'get_ids_all' for 'kvit_policies': You must set a data loader on the collection if loading from URIs. in get.
+2026-02-05 22:17:10,558 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-05 22:17:15,896 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-05 22:17:15,902 - chromamcp.tools.document.get_all - INFO - Getting all documents from 'kvit_policies'. Limit: 50, Offset: 0. Using default includes.
+2026-02-05 22:17:15,955 - chromamcp.tools.document.get_all - INFO - Successfully retrieved 47 documents from 'kvit_policies'.
+2026-02-05 22:17:16,395 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest

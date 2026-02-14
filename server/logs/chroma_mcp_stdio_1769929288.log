@@ -1,0 +1,118 @@
+2026-02-01 12:31:28,752 - root - INFO - STDIO MODE: Logging configured - all logs redirected to D:\opencode\server\logs\chroma_mcp_stdio_1769929288.log
+2026-02-01 12:31:28,752 - chromamcp.unconfigured - WARNING - Logger requested before main configuration.
+2026-02-01 12:31:28,754 - root - INFO - Log retention policy set to 7 days
+2026-02-01 12:31:28,755 - root - INFO - Monkey patched logging.getLogger to ensure all future loggers use file output only
+2026-02-01 12:31:28,771 - chromamcp.utils.set_server_config - INFO - Global server config set: ChromaClientConfig(client_type='persistent', embedding_function_name='default', data_dir='D:/chromadb/llmAgent/day8/chroma_data', host=None, port=8000, ssl=True, tenant=None, database=None, api_key=None, use_cpu_provider=None)
+2026-02-01 12:31:28,774 - chromamcp - INFO - Chroma client configuration set: persistent
+2026-02-01 12:31:28,774 - chromamcp.utils.chroma_client - INFO - Instantiating embedding function: 'default'
+2026-02-01 12:31:28,818 - chromamcp.utils.chroma_client - INFO - Successfully instantiated embedding function: 'default'
+2026-02-01 12:31:28,818 - chromamcp - INFO - Initializing persistent ChromaDB client at: D:/chromadb/llmAgent/day8/chroma_data
+2026-02-01 12:31:30,002 - chromamcp - INFO - Ensuring essential ChromaDB collections exist...
+2026-02-01 12:31:30,006 - chromamcp - INFO - ChromaDB client (persistent) initialized successfully.
+2026-02-01 12:31:30,006 - chromamcp - INFO - Server configured (CPU provider: auto-detected)
+2026-02-01 12:31:30,007 - chromamcp - INFO - Logs will be saved to: D:\opencode\server\logs
+2026-02-01 12:31:30,009 - chromamcp - INFO - Chroma MCP server v0.2.28 started. Using stdio transport.
+2026-02-01 12:31:30,041 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 12:31:32,756 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 12:31:58,858 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 12:32:02,137 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-01 12:32:02,832 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 12:33:30,858 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 12:34:05,151 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 12:34:10,547 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-01 12:34:12,292 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 12:34:29,643 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-01 12:34:31,358 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 12:34:33,264 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-01 12:34:33,274 - root - INFO - --- ENTERING _base_sequential_thinking_impl ---
+2026-02-01 12:34:33,274 - root - INFO - --- Getting Chroma client... ---
+2026-02-01 12:34:33,275 - root - INFO - --- Chroma client obtained. ---
+2026-02-01 12:34:33,275 - chromamcp.utils.chroma_client - INFO - Instantiating embedding function: 'default'
+2026-02-01 12:34:33,276 - chromamcp.utils.chroma_client - INFO - Successfully instantiated embedding function: 'default'
+2026-02-01 12:34:33,276 - root - INFO - --- Getting/Creating collection... ---
+2026-02-01 12:34:33,344 - root - INFO - --- Collection 'sequential_thoughts_v1' obtained/created. ---
+2026-02-01 12:34:33,344 - root - INFO - --- Attempting collection.add for ID: thought_82f09829-afe6-469e-8b6e-edb9004acd07_1 ---
+2026-02-01 12:34:33,889 - root - INFO - --- Successfully added thought ID: thought_82f09829-afe6-469e-8b6e-edb9004acd07_1 ---
+2026-02-01 12:34:33,889 - root - INFO - --- EXITING _base_sequential_thinking_impl NORMALLY ---
+2026-02-01 12:34:34,472 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 12:34:38,834 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-01 12:34:38,844 - chromamcp.tools.document.query_where - INFO - Querying 'kvit_policies' with where filter. N_results: 5. Using default includes.
+2026-02-01 12:34:39,230 - chromamcp.tools.document.query_where - INFO - Query with where filter successful on 'kvit_policies', returning 1 result sets.
+2026-02-01 12:34:39,624 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 12:34:42,665 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-01 12:34:42,673 - chromamcp.tools.document.get_docfilter - INFO - Getting documents from 'kvit_policies' with document filter. Limit: 10, Offset: 0. Using default includes.
+2026-02-01 12:34:42,749 - chromamcp.tools.document.get_docfilter - INFO - Successfully retrieved 1 documents using document filter from 'kvit_policies'.
+2026-02-01 12:34:43,176 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 12:34:48,527 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-01 12:34:48,536 - chromamcp.tools.document.get_docfilter - INFO - Getting documents from 'kvit_policies' with document filter. Limit: 10, Offset: 0. Using default includes.
+2026-02-01 12:34:48,540 - chromamcp.tools.document.get_docfilter - INFO - Successfully retrieved 2 documents using document filter from 'kvit_policies'.
+2026-02-01 12:34:48,543 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-01 12:34:48,548 - chromamcp.tools.document.get_docfilter - INFO - Getting documents from 'kvit_policies' with document filter. Limit: 10, Offset: 0. Using default includes.
+2026-02-01 12:34:48,552 - chromamcp.tools.document.get_docfilter - INFO - Successfully retrieved 9 documents using document filter from 'kvit_policies'.
+2026-02-01 12:34:49,794 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 12:34:53,789 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-01 12:34:53,795 - chromamcp.tools.document.get_ids - INFO - Getting documents by 6 IDs from 'kvit_policies'. Using default includes.
+2026-02-01 12:34:53,851 - chromamcp.tools.document.get_ids - INFO - Successfully retrieved 5 documents by ID from 'kvit_policies'.
+2026-02-01 12:34:54,342 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 12:34:58,682 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-01 12:34:58,689 - root - INFO - --- ENTERING _base_sequential_thinking_impl ---
+2026-02-01 12:34:58,690 - root - INFO - --- Getting Chroma client... ---
+2026-02-01 12:34:58,690 - root - INFO - --- Chroma client obtained. ---
+2026-02-01 12:34:58,690 - chromamcp.utils.chroma_client - INFO - Instantiating embedding function: 'default'
+2026-02-01 12:34:58,690 - chromamcp.utils.chroma_client - INFO - Successfully instantiated embedding function: 'default'
+2026-02-01 12:34:58,690 - root - INFO - --- Getting/Creating collection... ---
+2026-02-01 12:34:58,739 - root - INFO - --- Collection 'sequential_thoughts_v1' obtained/created. ---
+2026-02-01 12:34:58,739 - root - INFO - --- Attempting collection.add for ID: thought_1a60d1f4-1267-4c8a-845b-a2d88d22c62e_2 ---
+2026-02-01 12:34:59,082 - root - INFO - --- Successfully added thought ID: thought_1a60d1f4-1267-4c8a-845b-a2d88d22c62e_2 ---
+2026-02-01 12:34:59,117 - root - INFO - --- EXITING _base_sequential_thinking_impl NORMALLY ---
+2026-02-01 12:34:59,595 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 12:35:06,457 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-01 12:35:06,467 - root - INFO - --- ENTERING _base_sequential_thinking_impl ---
+2026-02-01 12:35:06,467 - root - INFO - --- Getting Chroma client... ---
+2026-02-01 12:35:06,467 - root - INFO - --- Chroma client obtained. ---
+2026-02-01 12:35:06,468 - chromamcp.utils.chroma_client - INFO - Instantiating embedding function: 'default'
+2026-02-01 12:35:06,468 - chromamcp.utils.chroma_client - INFO - Successfully instantiated embedding function: 'default'
+2026-02-01 12:35:06,468 - root - INFO - --- Getting/Creating collection... ---
+2026-02-01 12:35:06,518 - root - INFO - --- Collection 'sequential_thoughts_v1' obtained/created. ---
+2026-02-01 12:35:06,518 - root - INFO - --- Attempting collection.add for ID: thought_8610faf0-abd9-4ef8-beff-9a6c5b6365ba_3 ---
+2026-02-01 12:35:07,036 - root - INFO - --- Successfully added thought ID: thought_8610faf0-abd9-4ef8-beff-9a6c5b6365ba_3 ---
+2026-02-01 12:35:07,040 - root - INFO - --- EXITING _base_sequential_thinking_impl NORMALLY ---
+2026-02-01 12:35:07,561 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 12:35:39,383 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 12:35:41,178 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-01 12:35:41,191 - chromamcp.tools.document.query - ERROR - Failed to query primary collection 'documents': Collection [documents] does not exist
+Traceback (most recent call last):
+  File "C:\Users\karthikeyan\AppData\Local\Programs\Python\Python312\Lib\site-packages\chroma_mcp\tools\document_tools.py", line 959, in _query_documents_impl
+    primary_collection = client.get_collection(primary_collection_name)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\karthikeyan\AppData\Local\Programs\Python\Python312\Lib\site-packages\chromadb\api\client.py", line 208, in get_collection
+    model = self._server.get_collection(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\karthikeyan\AppData\Local\Programs\Python\Python312\Lib\site-packages\chromadb\api\rust.py", line 271, in get_collection
+    collection = self.bindings.get_collection(name, tenant, database)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+chromadb.errors.NotFoundError: Collection [documents] does not exist
+2026-02-01 12:35:42,065 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 12:35:43,823 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-01 12:35:44,747 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 12:35:47,157 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-01 12:35:48,433 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 12:35:51,038 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-01 12:35:51,046 - chromamcp.tools.document.get_ids - INFO - Getting documents by 12 IDs from 'kvit_policies'. Using default includes.
+2026-02-01 12:35:51,052 - chromamcp.tools.document.get_ids - INFO - Successfully retrieved 12 documents by ID from 'kvit_policies'.
+2026-02-01 12:35:51,517 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 12:36:33,331 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 12:37:23,017 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 12:37:26,876 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-01 12:37:27,930 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 12:37:31,601 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-01 12:37:32,366 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 12:37:38,586 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-01 12:37:39,653 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 12:37:43,043 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-01 12:37:43,050 - chromamcp.tools.document.get_all - INFO - Getting all documents from 'kvit_policies'. Limit: 50, Offset: 0. Using default includes.
+2026-02-01 12:37:43,117 - chromamcp.tools.document.get_all - INFO - Successfully retrieved 47 documents from 'kvit_policies'.
+2026-02-01 12:37:43,541 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 12:38:41,061 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 13:00:48,851 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-01 13:04:06,823 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest

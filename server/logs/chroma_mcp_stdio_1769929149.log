@@ -1,0 +1,15 @@
+2026-02-01 12:29:09,748 - root - INFO - STDIO MODE: Logging configured - all logs redirected to D:\opencode\server\logs\chroma_mcp_stdio_1769929149.log
+2026-02-01 12:29:09,748 - chromamcp.unconfigured - WARNING - Logger requested before main configuration.
+2026-02-01 12:29:09,748 - root - INFO - Log retention policy set to 7 days
+2026-02-01 12:29:09,750 - root - INFO - Monkey patched logging.getLogger to ensure all future loggers use file output only
+2026-02-01 12:29:09,766 - chromamcp.utils.set_server_config - INFO - Global server config set: ChromaClientConfig(client_type='persistent', embedding_function_name='default', data_dir='D:/chromadb/llmAgent/day8/chroma_data', host=None, port=8000, ssl=True, tenant=None, database=None, api_key=None, use_cpu_provider=None)
+2026-02-01 12:29:09,768 - chromamcp - INFO - Chroma client configuration set: persistent
+2026-02-01 12:29:09,768 - chromamcp.utils.chroma_client - INFO - Instantiating embedding function: 'default'
+2026-02-01 12:29:09,811 - chromamcp.utils.chroma_client - INFO - Successfully instantiated embedding function: 'default'
+2026-02-01 12:29:09,812 - chromamcp - INFO - Initializing persistent ChromaDB client at: D:/chromadb/llmAgent/day8/chroma_data
+2026-02-01 12:29:11,085 - chromamcp - INFO - Ensuring essential ChromaDB collections exist...
+2026-02-01 12:29:11,091 - chromamcp - INFO - ChromaDB client (persistent) initialized successfully.
+2026-02-01 12:29:11,091 - chromamcp - INFO - Server configured (CPU provider: auto-detected)
+2026-02-01 12:29:11,091 - chromamcp - INFO - Logs will be saved to: D:\opencode\server\logs
+2026-02-01 12:29:11,093 - chromamcp - INFO - Chroma MCP server v0.2.28 started. Using stdio transport.
+2026-02-01 12:29:11,120 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest

@@ -1,0 +1,132 @@
+[
+  {
+    "id": "doc2_0",
+    "document": "Header: KONGU ENGINEERING COLLEGE PERUNDURAI ERODE-638060 (Autonomous)\nDate: December 1, 2025\nType: Note\nSubject: Kongu Engineering College – Faculty Quality Improvement Programme – Monetary benefit – sanction requested – reg.",
+    "metadata": {
+      "doc_id": "DOC1",
+      "doc_title": "Monetary Benefit Note",
+      "doc_date": "2025-12-01",
+      "doc_type": "Note",
+      "category": "Faculty Benefits",
+      "source_file": "Faculty Quality Improvement Programme.json",
+      "chunk_index": 0
+    }
+  },
+  {
+    "id": "doc2_1",
+    "document": "Purpose: To encourage Faculty participation in Seminars, Conferences, Workshops, and Paper Presentations, monetary benefits are provided as detailed below.",
+    "metadata": {
+      "doc_id": "DOC1",
+      "doc_title": "Monetary Benefit Note",
+      "doc_date": "2025-12-01",
+      "doc_type": "Note",
+      "category": "Faculty Benefits",
+      "source_file": "Faculty Quality Improvement Programme.json",
+      "chunk_index": 1
+    }
+  },
+  {
+    "id": "doc2_2",
+    "document": "STATE / NATIONAL LEVEL – Existing Policy:\n(i) 100% reimbursement if expenses are upto Rs.2000. If exceeding Rs.2000, Rs.2000 plus 50% of excess provided.\n(ii) 100% expenses reimbursed when deputed by KEC.",
+    "metadata": {
+      "doc_id": "DOC2",
+      "doc_title": "Monetary Benefit Note",
+      "doc_date": "2025-12-01",
+      "doc_type": "Note",
+      "category": "Faculty Benefits",
+      "source_file": "Faculty Quality Improvement Programme.json",
+      "chunk_index": 2
+    }
+  },
+  {
+    "id": "doc2_3",
+    "document": "STATE / NATIONAL LEVEL – Recommended Policy:\n(i) 100% reimbursement if registration fee upto Rs.3000. If exceeding Rs.3000, Rs.3000 plus 50% of excess provided.\n(ii) 100% expenses reimbursed when deputed by KEC.",
+    "metadata": {
+      "doc_id": "DOC2",
+      "doc_title": "Monetary Benefit Note",
+      "doc_date": "2025-12-01",
+      "doc_type": "Note",
+      "category": "Faculty Benefits",
+      "source_file": "Faculty Quality Improvement Programme.json",
+      "chunk_index": 3
+    }
+  },
+  {
+    "id": "doc2_4",
+    "document": "INTERNATIONAL LEVEL:\nExisting: Rs.20,000 lump sum reimbursement.\nRecommended: Rs.30,000 lump sum reimbursement.",
+    "metadata": {
+      "doc_id": "DOC2",
+      "doc_title": "Monetary Benefit Note",
+      "doc_date": "2025-12-01",
+      "doc_type": "Note",
+      "category": "Faculty Benefits",
+      "source_file": "Faculty Quality Improvement Programme.json",
+      "chunk_index": 4
+    }
+  },
+  {
+    "id": "doc2_5",
+    "document": "Footer: Submitted for approval / Orders. Signed by Planning Cell, Principal, Correspondent, Secretary.",
+    "metadata": {
+      "doc_id": "DOC2",
+      "doc_title": "Monetary Benefit Note",
+      "doc_date": "2025-12-01",
+      "doc_type": "Note",
+      "category": "Faculty Benefits",
+      "source_file": "Faculty Quality Improvement Programme.json",
+      "chunk_index": 5
+    }
+  },
+  {
+    "id": "doc2.1_0",
+    "document": "Header: KONGU ENGINEERING COLLEGE PERUNDURAI ERODE-638060 (Autonomous)\nDate: December 1, 2025\nTitle: Note on Local Conveyance",
+    "metadata": {
+      "doc_id": "DOC2",
+      "doc_title": "Local Conveyance Note",
+      "doc_date": "2025-12-01",
+      "doc_type": "Note",
+      "category": "Travel Allowance",
+      "source_file": "Faculty Quality Improvement Programme.json",
+      "chunk_index": 0
+    }
+  },
+  {
+    "id": "doc2.1_1",
+    "document": "Mileage Revision Proposal: Current allowance Rs.8 per km for own car usage. Proposed revision to Rs.10 per km for all distances plus Toll charges due to diesel/petrol price escalation.",
+    "metadata": {
+      "doc_id": "DOC2",
+      "doc_title": "Local Conveyance Note",
+      "doc_date": "2025-12-01",
+      "doc_type": "Note",
+      "category": "Travel Allowance",
+      "source_file": "Faculty Quality Improvement Programme.json",
+      "chunk_index": 1
+    }
+  },
+  {
+    "id": "doc2.1_2",
+    "document": "Assistant Professors Eligibility:\nCurrently not eligible for own car usage. Faculty deputed for industry visits and consultancy. Group travel using own cars is cheaper. Government grant travel has no management burden.\nProposed:\n(i) Assistant Professors in groups (minimum 2) may use own car with Principal approval.\n(ii) Assistant Professors may use own car for Grant supported work with Principal approval.",
+    "metadata": {
+      "doc_id": "DOC2",
+      "doc_title": "Local Conveyance Note",
+      "doc_date": "2025-12-01",
+      "doc_type": "Note",
+      "category": "Travel Allowance",
+      "source_file": "Faculty Quality Improvement Programme.json",
+      "chunk_index": 2
+    }
+  },
+  {
+    "id": "doc2.1_3",
+    "document": "Footer: Submitted for approval / Orders. Signed by Planning Cell, Principal, Correspondent, Secretary.",
+    "metadata": {
+      "doc_id": "DOC2",
+      "doc_title": "Local Conveyance Note",
+      "doc_date": "2025-12-01",
+      "doc_type": "Note",
+      "category": "Travel Allowance",
+      "source_file": "Faculty Quality Improvement Programme.json",
+      "chunk_index": 3
+    }
+  }
+]

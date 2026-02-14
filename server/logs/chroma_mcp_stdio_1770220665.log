@@ -1,0 +1,54 @@
+2026-02-04 21:27:45,930 - root - INFO - STDIO MODE: Logging configured - all logs redirected to D:\opencode\server\logs\chroma_mcp_stdio_1770220665.log
+2026-02-04 21:27:45,931 - chromamcp.unconfigured - WARNING - Logger requested before main configuration.
+2026-02-04 21:27:45,931 - root - INFO - Log retention policy set to 7 days
+2026-02-04 21:27:45,933 - root - INFO - Monkey patched logging.getLogger to ensure all future loggers use file output only
+2026-02-04 21:27:45,957 - chromamcp.utils.set_server_config - INFO - Global server config set: ChromaClientConfig(client_type='persistent', embedding_function_name='default', data_dir='D:/chromadb/llmAgent/day8/chroma_data', host=None, port=8000, ssl=True, tenant=None, database=None, api_key=None, use_cpu_provider=None)
+2026-02-04 21:27:45,959 - chromamcp - INFO - Chroma client configuration set: persistent
+2026-02-04 21:27:45,959 - chromamcp.utils.chroma_client - INFO - Instantiating embedding function: 'default'
+2026-02-04 21:27:46,044 - chromamcp.utils.chroma_client - INFO - Successfully instantiated embedding function: 'default'
+2026-02-04 21:27:46,045 - chromamcp - INFO - Initializing persistent ChromaDB client at: D:/chromadb/llmAgent/day8/chroma_data
+2026-02-04 21:27:47,667 - chromamcp - INFO - Ensuring essential ChromaDB collections exist...
+2026-02-04 21:27:47,675 - chromamcp - INFO - ChromaDB client (persistent) initialized successfully.
+2026-02-04 21:27:47,675 - chromamcp - INFO - Server configured (CPU provider: auto-detected)
+2026-02-04 21:27:47,675 - chromamcp - INFO - Logs will be saved to: D:\opencode\server\logs
+2026-02-04 21:27:47,678 - chromamcp - INFO - Chroma MCP server v0.2.28 started. Using stdio transport.
+2026-02-04 21:27:47,715 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-04 21:28:23,528 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-04 21:28:37,178 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-04 21:29:16,821 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-04 21:29:57,727 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-04 21:30:19,657 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-04 21:30:23,419 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-04 21:30:24,837 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-04 21:30:28,676 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-04 21:30:29,509 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-04 21:30:31,984 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-04 21:30:33,652 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-04 21:31:14,245 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-04 21:32:00,481 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-04 21:32:39,193 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-04 21:39:40,448 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-04 21:40:00,818 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-04 21:40:50,231 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-04 21:43:04,129 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-04 21:43:06,225 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-04 21:43:06,731 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-04 21:43:08,509 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-04 21:43:09,049 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-04 22:18:54,826 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-04 22:18:58,607 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-04 22:18:59,665 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-04 22:19:02,042 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-04 22:19:02,047 - chromamcp.tools.document.get_ids - INFO - Getting documents by 1 IDs from 'kvit_policies'. Using default includes.
+2026-02-04 22:19:02,112 - chromamcp.tools.document.get_ids - INFO - Successfully retrieved 1 documents by ID from 'kvit_policies'.
+2026-02-04 22:19:02,633 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-04 22:19:04,755 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-04 22:19:04,761 - chromamcp.tools.document.get_all - INFO - Getting all documents from 'kvit_policies'. Limit: 50, Offset: 0. Using default includes.
+2026-02-04 22:19:04,807 - chromamcp.tools.document.get_all - INFO - Successfully retrieved 47 documents from 'kvit_policies'.
+2026-02-04 22:19:05,261 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-04 22:19:09,604 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-04 22:19:10,623 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-02-04 22:19:13,988 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-02-04 22:19:13,992 - chromamcp.tools.document.get_ids - INFO - Getting documents by 4 IDs from 'kvit_policies'. Using default includes.
+2026-02-04 22:19:13,995 - chromamcp.tools.document.get_ids - INFO - Successfully retrieved 4 documents by ID from 'kvit_policies'.
+2026-02-04 22:19:14,610 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest

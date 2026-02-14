@@ -1,0 +1,47 @@
+2026-01-31 14:17:04,477 - root - INFO - STDIO MODE: Logging configured - all logs redirected to D:\opencode\server\logs\chroma_mcp_stdio_1769849224.log
+2026-01-31 14:17:04,477 - chromamcp.unconfigured - WARNING - Logger requested before main configuration.
+2026-01-31 14:17:04,478 - root - INFO - Log retention policy set to 7 days
+2026-01-31 14:17:04,479 - root - INFO - Monkey patched logging.getLogger to ensure all future loggers use file output only
+2026-01-31 14:17:04,519 - chromamcp.utils.set_server_config - INFO - Global server config set: ChromaClientConfig(client_type='persistent', embedding_function_name='default', data_dir='D:/chromadb/llmAgent/day8/chroma_data', host=None, port=8000, ssl=True, tenant=None, database=None, api_key=None, use_cpu_provider=None)
+2026-01-31 14:17:04,521 - chromamcp - INFO - Chroma client configuration set: persistent
+2026-01-31 14:17:04,521 - chromamcp.utils.chroma_client - INFO - Instantiating embedding function: 'default'
+2026-01-31 14:17:04,564 - chromamcp.utils.chroma_client - INFO - Successfully instantiated embedding function: 'default'
+2026-01-31 14:17:04,564 - chromamcp - INFO - Initializing persistent ChromaDB client at: D:/chromadb/llmAgent/day8/chroma_data
+2026-01-31 14:17:05,751 - chromamcp - INFO - Ensuring essential ChromaDB collections exist...
+2026-01-31 14:17:05,758 - chromamcp - INFO - ChromaDB client (persistent) initialized successfully.
+2026-01-31 14:17:05,758 - chromamcp - INFO - Server configured (CPU provider: auto-detected)
+2026-01-31 14:17:05,758 - chromamcp - INFO - Logs will be saved to: D:\opencode\server\logs
+2026-01-31 14:17:05,762 - chromamcp - INFO - Chroma MCP server v0.2.28 started. Using stdio transport.
+2026-01-31 14:17:05,796 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-01-31 14:17:37,183 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-01-31 14:17:41,502 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-01-31 14:17:41,773 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-01-31 14:17:42,236 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-01-31 14:18:16,527 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-01-31 14:18:20,615 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-01-31 14:18:21,797 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-01-31 14:18:22,748 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-01-31 14:19:08,878 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-01-31 14:19:38,001 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-01-31 14:20:00,543 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-01-31 14:20:18,387 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-01-31 14:21:31,533 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-01-31 14:23:48,315 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-01-31 14:23:51,385 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-01-31 14:23:53,018 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-01-31 14:23:55,503 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-01-31 14:23:56,737 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-01-31 14:25:31,298 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-01-31 14:25:33,849 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-01-31 14:25:35,163 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-01-31 14:25:37,534 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-01-31 14:25:38,959 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-01-31 14:26:00,556 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-01-31 14:29:40,161 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-01-31 14:29:44,988 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-01-31 14:29:46,333 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-01-31 14:29:47,742 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-01-31 14:29:48,250 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-01-31 14:29:49,905 - mcp.server.lowlevel.server - INFO - Processing request of type CallToolRequest
+2026-01-31 14:29:51,216 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
+2026-01-31 14:30:35,280 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest

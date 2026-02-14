@@ -1,0 +1,20 @@
+{
+  "name": "opencode-chat-ui",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,auth,client -c cyan,magenta,green \"npm run dev -w server\" \"npm run auth -w server\" \"npm run dev -w client\"",
+    "build": "npm run build -w client",
+    "start": "npm run start -w server",
+    "lint": "npm run lint -w client"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "dependencies": {
+    "rehype-raw": "^7.0.0"
+  }
+}
