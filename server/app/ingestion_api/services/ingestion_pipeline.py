@@ -110,6 +110,14 @@ class MetadataStore:
             )
             conn.commit()
 
+    def rename_collection(self, old_name: str, new_name: str):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                "UPDATE documents SET collection_name=?, updated_at=? WHERE collection_name=?",
+                (new_name, time.strftime("%Y-%m-%d %H:%M:%S"), old_name),
+            )
+            conn.commit()
+
 
 class IngestionPipeline:
     def __init__(

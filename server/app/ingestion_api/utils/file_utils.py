@@ -1,4 +1,5 @@
 import os
+import tempfile
 import uuid
 from pathlib import Path
 from typing import Tuple
@@ -11,7 +12,6 @@ logger = get_logger("file_utils")
 class FileManager:
     def __init__(self, uploads_dir: str):
         self.uploads_dir = Path(uploads_dir)
-        self.uploads_dir.mkdir(parents=True, exist_ok=True)
 
     def generate_doc_id(self) -> str:
         return str(uuid.uuid4())
@@ -25,10 +25,15 @@ class FileManager:
 
     async def save_upload(self, content: bytes, filename: str, doc_id: str) -> str:
         safe_name = filename.replace("/", "_").replace("\\", "_")
-        path = self.uploads_dir / f"{doc_id}_{safe_name}"
-        with open(path, "wb") as f:
-            f.write(content)
-        return str(path)
+        suffix = Path(safe_name).suffix or ".pdf"
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            delete=False,
+            suffix=suffix,
+            prefix=f"ingestion_{doc_id}_",
+        ) as temp_file:
+            temp_file.write(content)
+            return temp_file.name
 
     def delete_file(self, path: str):
         try:

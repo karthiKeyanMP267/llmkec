@@ -961,9 +961,6 @@
   font-family: 'Courier New', monospace;
   font-size: 11px;
   color: #64748b;
-  max-width: 150px;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 

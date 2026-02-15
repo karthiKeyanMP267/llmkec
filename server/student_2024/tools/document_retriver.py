@@ -1,6 +1,9 @@
 import chromadb
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
 from llama_index.core import Settings, VectorStoreIndex
-from llama_index.core.postprocessor import SentenceTransformerRerank
 from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.vector_stores.chroma import ChromaVectorStore
@@ -8,15 +11,27 @@ from llama_index.vector_stores.chroma import ChromaVectorStore
 
 CHROMA_PATH = "student_db_2024"
 COLLECTION_NAME = "rag_demo"
-EMBED_MODEL = "BAAI/bge-base-en-v1.5"
 SIMILARITY_TOP_K = 10
 MMR_THRESHOLD = 0.5
-RERANK_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
-RERANK_TOP_N = 5
+
+
+def _resolve_embedding_model() -> str:
+    env_path = Path(__file__).resolve().parents[1] / ".env.ingestion"
+    load_dotenv(env_path, override=False)
+    value = os.getenv("EMBEDDING_MODEL", "bge-base-en-v1.5")
+    alias_map = {
+        "bge-large-en-v1.5": "BAAI/bge-large-en-v1.5",
+        "e5-large-v2": "intfloat/e5-large-v2",
+        "gte-large": "thenlper/gte-large",
+        "bge-base-en-v1.5": "BAAI/bge-base-en-v1.5",
+        "e5-base-v2": "intfloat/e5-base-v2",
+        "all-MiniLM-L6-v2": "sentence-transformers/all-MiniLM-L6-v2",
+    }
+    return alias_map.get(value, value)
 
 
 # Keep embeddings consistent with ingestion
-Settings.embed_model = HuggingFaceEmbedding(model_name=EMBED_MODEL)
+Settings.embed_model = HuggingFaceEmbedding(model_name=_resolve_embedding_model())
 Settings.llm = None  # plug in a local LLM here if available
 
 
@@ -33,20 +48,13 @@ def build_retriever(index: VectorStoreIndex):
         vector_store_query_mode="mmr",
         vector_store_kwargs={"mmr_threshold": MMR_THRESHOLD},
     )
-
-    reranker = SentenceTransformerRerank(
-        model=RERANK_MODEL,
-        top_n=RERANK_TOP_N,
-    )
-
-    return retriever, reranker
+    return retriever
 
 
 def build_query_engine(index: VectorStoreIndex):
-    retriever, reranker = build_retriever(index)
+    retriever = build_retriever(index)
     return RetrieverQueryEngine.from_args(
         retriever=retriever,
-        node_postprocessors=[reranker],
     )
 
 

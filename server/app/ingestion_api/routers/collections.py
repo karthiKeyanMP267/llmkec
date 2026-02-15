@@ -66,11 +66,14 @@ async def update_collection(name: str, request: CollectionUpdateRequest):
     if not pipeline.chroma_service.collection_exists(name):
         raise HTTPException(status_code=404, detail=f"Collection '{name}' not found")
     try:
+        target_name = request.new_name or name
         result = pipeline.chroma_service.rename_collection(
             old_name=name,
-            new_name=request.new_name,
+            new_name=target_name,
             new_metadata=request.metadata,
         )
+        if target_name != name:
+            pipeline.metadata_store.rename_collection(name, target_name)
         return CollectionInfo(
             name=result["name"],
             document_count=result["document_count"],

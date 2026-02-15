@@ -4,7 +4,9 @@ import os
 import sys
 import chromadb
 from typing import List
+from pathlib import Path
 
+from dotenv import load_dotenv
 from llama_index.core import Settings, SimpleDirectoryReader, Document
 from llama_index.core.ingestion import IngestionPipeline
 from llama_index.core.node_parser import SentenceSplitter
@@ -26,12 +28,28 @@ def ok(msg: str):
 
 print("\n🔍 STEP 0: Configuration")
 
+ENV_PATH = Path(__file__).resolve().parents[1] / ".env.ingestion"
+load_dotenv(ENV_PATH, override=False)
+
+
+def resolve_embedding_model() -> str:
+    value = os.getenv("EMBEDDING_MODEL", "bge-base-en-v1.5")
+    alias_map = {
+        "bge-large-en-v1.5": "BAAI/bge-large-en-v1.5",
+        "e5-large-v2": "intfloat/e5-large-v2",
+        "gte-large": "thenlper/gte-large",
+        "bge-base-en-v1.5": "BAAI/bge-base-en-v1.5",
+        "e5-base-v2": "intfloat/e5-base-v2",
+        "all-MiniLM-L6-v2": "sentence-transformers/all-MiniLM-L6-v2",
+    }
+    return alias_map.get(value, value)
+
 # ----------------------------
 # 🔒 Force local-only execution
 # ----------------------------
 Settings.llm = None
 Settings.embed_model = HuggingFaceEmbedding(
-    model_name="BAAI/bge-base-en-v1.5"
+    model_name=resolve_embedding_model()
 )
 
 ok("Local embeddings + LLM disabled")

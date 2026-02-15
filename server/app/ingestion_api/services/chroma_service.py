@@ -2,6 +2,7 @@ import json
 from typing import Any, Dict, List, Optional
 
 from chromadb import PersistentClient
+from chromadb.errors import InvalidArgumentError
 from chromadb.utils import embedding_functions
 
 from app.ingestion_api.utils.logger import get_logger
@@ -70,23 +71,28 @@ class ChromaService:
         return count
 
     def rename_collection(self, old_name: str, new_name: str, new_metadata: Optional[Dict[str, Any]] = None):
-        old = self._get_collection(old_name)
-        data = old.get()
-        self.client.delete_collection(old_name)
-        safe_meta = new_metadata if new_metadata else {"source": "admin-ui"}
-        new_col = self.client.get_or_create_collection(name=new_name, metadata=safe_meta)
-        if data and data.get("ids"):
-            new_col.add(
-                ids=data["ids"],
-                documents=data["documents"],
-                metadatas=data["metadatas"],
-                embeddings=data.get("embeddings"),
-            )
-        return self.get_collection_info(new_name)
+        col = self.client.get_collection(old_name)
+        target_name = new_name or old_name
+        safe_meta = new_metadata if new_metadata is not None else (col.metadata or {"source": "admin-ui"})
+        col.modify(name=target_name, metadata=safe_meta)
+        return self.get_collection_info(target_name)
 
     def add_documents(self, collection_name: str, embeddings: List[List[float]], documents: List[str], metadatas: List[Dict[str, Any]], ids: List[str]):
         col = self._get_collection(collection_name)
-        col.add(embeddings=embeddings, documents=documents, metadatas=metadatas, ids=ids)
+        try:
+            col.add(embeddings=embeddings, documents=documents, metadatas=metadatas, ids=ids)
+        except InvalidArgumentError as exc:
+            message = str(exc)
+            if "Collection expecting embedding with dimension" in message:
+                actual_dim = len(embeddings[0]) if embeddings and embeddings[0] else None
+                raise ValueError(
+                    f"Embedding dimension mismatch for collection '{collection_name}'. "
+                    f"Collection was created with a different model/dimension. "
+                    f"Current embedding dimension: {actual_dim}. "
+                    f"Delete and recreate the collection (or switch back to the original embedding model), then re-ingest documents. "
+                    f"Original error: {message}"
+                ) from exc
+            raise
 
     def delete_document(self, collection_name: str, doc_id: str):
         col = self._get_collection(collection_name)
