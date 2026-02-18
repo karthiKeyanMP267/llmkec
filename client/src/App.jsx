@@ -7,6 +7,36 @@ import remarkMath from 'remark-math'
 import rehypeRaw from 'rehype-raw'
 import rehypeKatex from 'rehype-katex'
 
+const ROLE_TOP_QUESTIONS = {
+  STUDENT: [
+    'What are the key regulations for student attendance in 2024?',
+    'Summarize the exam eligibility rules for students.',
+    'What are the fee payment and due-date policies?',
+    'List important academic deadlines for this semester.',
+    'What are the rules for leave and medical certificate submission?',
+    'List the award of letter grade for MSC 2024'
+  ],
+  FACULTY: [
+    'What are the faculty leave norms and approval process?',
+    'Summarize faculty quality improvement programme guidelines.',
+    'What are the teaching promotion norms for faculty?',
+    'What are the TA/DA rules for official travel?',
+    'What are the norms for NTS and faculty promotions?',
+  ],
+  DEFAULT: [
+    'What are the key regulations for student attendance in 2024?',
+    'Summarize the exam eligibility rules for students.',
+    'What are the faculty leave norms and approval process?',
+    'What are the teaching promotion norms for faculty?',
+    'List important academic deadlines for this semester.',
+  ],
+}
+
+function getTopQuestionsByRole(role) {
+  const key = String(role || '').toUpperCase()
+  return ROLE_TOP_QUESTIONS[key] || ROLE_TOP_QUESTIONS.DEFAULT
+}
+
 function extractBoldNumberedItems(text) {
   const pattern = /(\*\*\d+(?:\.\d+)*\*\*)/g
   const parts = String(text || '').split(pattern).map((p) => p.trim()).filter(Boolean)
@@ -308,6 +338,7 @@ function parseKeyValueLines(text) {
 }
 
 function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
+  const topQuestions = getTopQuestionsByRole(session?.role)
   const [conversations, setConversations] = useState(() => {
     try {
       const saved = localStorage.getItem(`${storagePrefix}-conversations`)
@@ -353,11 +384,11 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
     }
   }
 
-  async function send() {
-    const text = input.trim()
+  async function send(overrideText = '') {
+    const text = String(overrideText || input).trim()
     if (!text || loading) return
     setError('')
-    setInput('')
+    if (!overrideText) setInput('')
 
     const optimisticUser = { role: 'user', text }
     const assistantIdx = messages.length + 1
@@ -469,6 +500,12 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
       setLoading(false)
       setAbortController(null)
     }
+  }
+
+  function askSuggestedQuestion(question) {
+    if (!question || loading) return
+    setInput('')
+    send(question)
   }
 
   function newChat() {
@@ -599,6 +636,23 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
                     </svg>
                   </button>
                 </form>
+
+                <div className="suggestionBox">
+                  <div className="suggestionTitle">Top 5 Questions</div>
+                  <div className="suggestionList">
+                    {topQuestions.map((question) => (
+                      <button
+                        key={question}
+                        type="button"
+                        className="suggestionBtn"
+                        onClick={() => askSuggestedQuestion(question)}
+                        disabled={loading}
+                      >
+                        {question}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             ) : null}
 

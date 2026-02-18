@@ -1,6 +1,7 @@
 import chromadb
 import os
 from pathlib import Path
+from typing import List
 
 from dotenv import load_dotenv
 from llama_index.core import Settings, VectorStoreIndex
@@ -9,8 +10,7 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.vector_stores.chroma import ChromaVectorStore
 
 
-CHROMA_PATH = "student_db_2024"
-COLLECTION_NAME = "rag_demo"
+CHROMA_PATH = str(Path(__file__).resolve().parents[1] / "student_db_2024")
 SIMILARITY_TOP_K = 10
 MMR_THRESHOLD = 0.5
 
@@ -30,14 +30,47 @@ def _resolve_embedding_model() -> str:
     return alias_map.get(value, value)
 
 
+def _resolve_collection_names(client: chromadb.PersistentClient) -> List[str]:
+    env_path = Path(__file__).resolve().parents[1] / ".env.ingestion"
+    load_dotenv(env_path, override=False)
+
+    available = [c.name for c in client.list_collections()]
+    available_set = set(available)
+
+    requested_many = (os.getenv("STUDENT_COLLECTIONS") or "").strip()
+    if requested_many:
+        requested = [name.strip() for name in requested_many.split(",") if name.strip()]
+        missing = [name for name in requested if name not in available_set]
+        if missing:
+            raise ValueError(
+                f"Configured collections not found: {', '.join(missing)}. "
+                f"Available collections: {', '.join(available) or 'none'}"
+            )
+        return requested
+
+    requested_single = (os.getenv("STUDENT_COLLECTION") or os.getenv("COLLECTION_NAME") or "").strip()
+    if requested_single:
+        if requested_single in available_set:
+            return [requested_single]
+        raise ValueError(
+            f"Configured collection '{requested_single}' not found. Available collections: {', '.join(available) or 'none'}"
+        )
+
+    default_candidates = [name for name in ("student_data_2024", "student_data_2022", "rag_demo") if name in available_set]
+    if default_candidates:
+        return default_candidates
+
+    raise ValueError(f"No supported collection found. Available collections: {', '.join(available) or 'none'}")
+
+
 # Keep embeddings consistent with ingestion
 Settings.embed_model = HuggingFaceEmbedding(model_name=_resolve_embedding_model())
 Settings.llm = None  # plug in a local LLM here if available
 
 
-def load_index() -> VectorStoreIndex:
+def load_index(collection_name: str) -> VectorStoreIndex:
     client = chromadb.PersistentClient(path=CHROMA_PATH)
-    collection = client.get_collection(COLLECTION_NAME)
+    collection = client.get_collection(collection_name)
     vector_store = ChromaVectorStore(chroma_collection=collection)
     return VectorStoreIndex.from_vector_store(vector_store)
 
@@ -59,7 +92,20 @@ def build_query_engine(index: VectorStoreIndex):
 
 
 async def query_rag(question: str) -> str:
-    index = load_index()
-    query_engine = build_query_engine(index)
-    response = await query_engine.aquery(question)
-    return str(response)
+    client = chromadb.PersistentClient(path=CHROMA_PATH)
+    collection_names = _resolve_collection_names(client)
+
+    outputs: List[str] = []
+    for collection_name in collection_names:
+        index = load_index(collection_name)
+        query_engine = build_query_engine(index)
+        response = await query_engine.aquery(question)
+        text = str(response).strip()
+        if not text:
+            continue
+        outputs.append(f"[{collection_name}]\n{text}")
+
+    if not outputs:
+        return "No relevant content found in configured student collections."
+
+    return "\n\n".join(outputs)

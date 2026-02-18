@@ -2105,6 +2105,51 @@
   color: #9ca3af;
 }
 
+.suggestionBox {
+  width: 100%;
+  max-width: 750px;
+  margin: 16px auto 0;
+}
+
+.suggestionTitle {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  margin-bottom: 10px;
+  text-align: left;
+}
+
+.suggestionList {
+  display: grid;
+  gap: 8px;
+}
+
+.suggestionBtn {
+  width: 100%;
+  text-align: left;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #ffffff;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.suggestionBtn:hover:not(:disabled) {
+  border-color: #00539B;
+  background: #f8fbff;
+}
+
+.suggestionBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 /* Messages */
 .msg {
   display: flex;

@@ -32,7 +32,7 @@ export default function LoginPage({ onLogin, status, error, loading, clearError 
                 onChange={(e) => { setEmail(e.target.value); clearError?.() }}
                 type="email"
                 required
-                placeholder="karthi.23cse@kongu.edu"
+                placeholder="Your Kongu Mail"
                 autoComplete="username"
               />
             </div>

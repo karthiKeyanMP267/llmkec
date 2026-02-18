@@ -15,6 +15,13 @@ export function UploadSection({
   onReplace,
   onDelete,
 }) {
+  const appendFiles = (event) => {
+    const incoming = Array.from(event.target.files || [])
+    if (!incoming.length) return
+    setFiles((prev) => [...prev, ...incoming])
+    event.target.value = ''
+  }
+
   return (
     <section className="modernAdminCard">
       <div className="cardHeader">
@@ -57,13 +64,13 @@ export function UploadSection({
             </svg>
             Upload PDFs (Single or Batch)
           </label>
-          <input className="formFileInput" type="file" multiple accept="application/pdf" onChange={(e) => setFiles(Array.from(e.target.files || []))} />
+          <input className="formFileInput" type="file" multiple accept="application/pdf" onChange={appendFiles} />
           {files.length > 0 && (
             <div className="fileCount">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="20 6 9 17 4 12"/>
               </svg>
-              {files.length} file(s) selected
+              {files.length} file(s) queued for ingestion
             </div>
           )}
           <button className="primaryBtn" disabled={busy === 'upload' || busy === 'ingest'} onClick={onUpload}>
