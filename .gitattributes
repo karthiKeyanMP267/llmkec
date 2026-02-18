@@ -1,0 +1,5 @@
+server/student_2024/student_db_2024/** filter=lfs diff=lfs merge=lfs -text
+server/faculty/faculty_db/** filter=lfs diff=lfs merge=lfs -text
+server/storage/chroma/** filter=lfs diff=lfs merge=lfs -text
+server/student_2024/data/** filter=lfs diff=lfs merge=lfs -text
+server/faculty/json_data/** filter=lfs diff=lfs merge=lfs -text
