@@ -511,23 +511,41 @@ function deriveRole(req) {
   return "STUDENT"; // default safest role
 }
 
-const STUDENT_BLOCKED_TOOL_PATTERNS = [/chroma/i, /policy[_-]?docs?/i, /policy[_-]?documents?/i];
-
-function isBlockedTool(idOrName) {
-  const value = String(idOrName || "");
-  return STUDENT_BLOCKED_TOOL_PATTERNS.some((re) => re.test(value));
+function parseServerNameFromId(id) {
+  if (!id || typeof id !== "string") return null;
+  const trimmed = id.trim();
+  if (!trimmed) return null;
+  const parts = trimmed.split(/[/:]/);
+  return parts.length > 1 ? parts[0] : null;
 }
 
-function filterToolsForRole(role, tools) {
+function extractToolServer(tool) {
+  if (!tool) return null;
+  if (typeof tool === "object") {
+    const direct =
+      tool.server || tool.serverName || tool.serverID || tool.serverId || tool.server_id || tool.provider || tool.source;
+    if (typeof direct === "string" && direct.trim()) return direct.trim();
+    const idLike = tool.id || tool.name || tool.tool || tool.title || "";
+    const parsed = parseServerNameFromId(idLike);
+    if (parsed) return parsed;
+  }
+  if (typeof tool === "string") {
+    const parsed = parseServerNameFromId(tool);
+    if (parsed) return parsed;
+  }
+  return null;
+}
+
+function filterToolsForRole(role, tools, allowedServers) {
   if (role === "FACULTY" || role === "ADMIN") return tools;
   if (!Array.isArray(tools)) return tools;
+
+  const allowList = new Set((allowedServers || roleDefaultMcpServers(role)).map((s) => String(s || "").trim()).filter(Boolean));
+
   return tools.filter((tool) => {
-    if (typeof tool === "string") return !isBlockedTool(tool);
-    if (tool && typeof tool === "object") {
-      const cand = tool.id || tool.name || tool.tool || tool.title || "";
-      return !isBlockedTool(cand);
-    }
-    return true;
+    const server = extractToolServer(tool);
+    if (!server) return true; // If we cannot detect the server, don't over-block generic tools.
+    return allowList.has(server);
   });
 }
 
@@ -537,10 +555,32 @@ function listEnabledMcpServers() {
     .map(([name]) => name);
 }
 
-function allowedMcpServersForRole(role) {
-  const servers = listEnabledMcpServers();
-  if (role === "FACULTY" || role === "ADMIN") return servers;
-  return servers.filter((name) => !isBlockedTool(name));
+function parseAllowedServersHeader(req) {
+  const raw = (req.headers["x-allowed-servers"] || "").toString();
+  if (!raw.trim()) return null;
+  const parsed = raw
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
+  return parsed.length ? Array.from(new Set(parsed)) : null;
+}
+
+function roleDefaultMcpServers(role) {
+  if (role === "ADMIN") {
+    return ["student_server_2022", "student_server_2024", "faculty_server"];
+  }
+  if (role === "FACULTY") {
+    return ["faculty_server"];
+  }
+  return ["student_server_2022", "student_server_2024"];
+}
+
+function allowedMcpServersForRole(role, req) {
+  const enabledServers = new Set(listEnabledMcpServers());
+  const roleDefaults = roleDefaultMcpServers(role).filter((name) => enabledServers.has(name));
+  const headerAllowed = parseAllowedServersHeader(req);
+  if (!headerAllowed) return roleDefaults;
+  return roleDefaults.filter((name) => headerAllowed.includes(name));
 }
 
 function normalizeProvidersPayload(payload) {
@@ -704,6 +744,7 @@ app.post("/api/mcp/disconnect", async (req, res) => {
 app.get("/api/mcp/tools", async (req, res) => {
   try {
     const role = deriveRole(req);
+    const allowedServers = allowedMcpServersForRole(role, req);
     const name = (req.query?.name || "").toString().trim();
     if (!name) {
       res.status(400).json({ ok: false, error: "Missing query param: name" });
@@ -731,8 +772,13 @@ app.get("/api/mcp/tools", async (req, res) => {
       return;
     }
 
+    if (!allowedServers.includes(baseName)) {
+      res.status(403).json({ ok: false, error: "Access denied for this MCP server" });
+      return;
+    }
+
     const tools = await listMcpToolsFromConfig(name, config);
-    res.json({ ok: true, name, tools: filterToolsForRole(role, tools) });
+    res.json({ ok: true, name, tools: filterToolsForRole(role, tools, allowedServers) });
   } catch (error) {
     res.status(500).json({ ok: false, error: String(error?.message || error) });
   }
@@ -753,6 +799,7 @@ app.get("/api/mcp/config", async (_req, res) => {
 app.get("/api/tools", async (req, res) => {
   try {
     const role = deriveRole(req);
+    const allowedServers = allowedMcpServersForRole(role, req);
     const provider = (req.query?.provider || "").toString().trim();
     const model = (req.query?.model || "").toString().trim();
     if (!provider || !model) {
@@ -761,7 +808,7 @@ app.get("/api/tools", async (req, res) => {
     }
     const { client } = await getOpencode();
     const tools = unwrap(await client.tool.list({ query: { provider, model } }));
-    res.json({ ok: true, tools: filterToolsForRole(role, tools) });
+    res.json({ ok: true, tools: filterToolsForRole(role, tools, allowedServers) });
   } catch (error) {
     res.status(500).json({ ok: false, error: String(error?.message || error) });
   }
@@ -770,9 +817,10 @@ app.get("/api/tools", async (req, res) => {
 app.get("/api/tool-ids", async (req, res) => {
   try {
     const role = deriveRole(req);
+    const allowedServers = allowedMcpServersForRole(role, req);
     const { client } = await getOpencode();
     const ids = unwrap(await client.tool.ids());
-    res.json({ ok: true, ids: filterToolsForRole(role, ids) });
+    res.json({ ok: true, ids: filterToolsForRole(role, ids, allowedServers) });
   } catch (error) {
     res.status(500).json({ ok: false, error: String(error?.message || error) });
   }
@@ -835,12 +883,6 @@ app.post("/api/chat", async (req, res) => {
       sessionId = created?.id;
     }
 
-    // Block faculty-only queries for students
-    if (role === "STUDENT" && /\bfaculty\b|\bstaff\b|\bteacher\b/i.test(message)) {
-      res.status(403).json({ ok: false, error: "Access denied for faculty content" });
-      return;
-    }
-
     const body = {
       system: KEC_SYSTEM_PROMPT,
       parts: [{ type: "text", text: message }],
@@ -861,7 +903,7 @@ Do NOT access or reference faculty, staff, HR, policy, or administrative content
 If asked, reply: "Access denied for faculty content."`;
     }
 
-    const allowedServers = allowedMcpServersForRole(role);
+    const allowedServers = allowedMcpServersForRole(role, req);
     if (allowedServers.length) {
       const roleLabel = role === "ADMIN" ? "ADMIN" : role === "FACULTY" ? "FACULTY" : "STUDENT";
       body.system += `
@@ -948,13 +990,6 @@ app.post("/api/chat/stream", async (req, res) => {
       sessionId = created?.id;
     }
 
-    if (role === "STUDENT" && /\bfaculty\b|\bstaff\b|\bteacher\b/i.test(message)) {
-      writeNdjson(res, { type: "error", error: "Access denied for faculty content" });
-      writeNdjson(res, { type: "done" });
-      res.end();
-      return;
-    }
-
     const body = {
       system: KEC_SYSTEM_PROMPT,
       parts: [{ type: "text", text: message.trim() }],
@@ -974,7 +1009,7 @@ Do NOT access or reference faculty, staff, HR, policy, or administrative content
 If asked, reply: "Access denied for faculty content."`;
     }
 
-    const allowedServers = allowedMcpServersForRole(role);
+    const allowedServers = allowedMcpServersForRole(role, req);
     if (allowedServers.length) {
       const roleLabel = role === "ADMIN" ? "ADMIN" : role === "FACULTY" ? "FACULTY" : "STUDENT";
       body.system += `

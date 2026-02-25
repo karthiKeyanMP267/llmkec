@@ -1,102 +1,218 @@
-# OpenCode Chat UI (Simple)
+# KEC AI Assistant Platform (Current Setup)
 
-A minimal ChatGPT-like web UI that uses the OpenCode SDK on a local Node server.
+This repository contains the full KEC assistant stack:
 
-## Prereqs
+- React + Vite client UI
+- Node.js chat/API gateway (OpenCode + MCP integration)
+- Node.js auth server (PostgreSQL-backed login)
+- Python ingestion APIs (main + student_2024 + faculty)
 
-- Node.js (you already have this)
-- OpenCode configured with at least one provider (via `opencode` TUI `/connect`, or your existing setup)
+This README is for **first-time setup from zero**.
 
-## Run (dev)
+---
 
-From the repo root:
+## 1) Prerequisites
+
+Install these before starting:
+
+- Node.js 20+ and npm
+- Python 3.10+ (3.11 recommended)
+- PostgreSQL 14+
+- Git
+
+Optional but commonly needed:
+
+- OpenCode provider keys (OpenAI/Anthropic/Groq/Google/Mistral, etc.)
+- `llama-parse` API key for document parsing
+
+---
+
+## 2) Project Structure (important folders)
+
+- `client/` → React frontend
+- `server/src/index.js` → Main chat API gateway (default port `8787`)
+- `server/src/auth.js` → Auth server (default port `4005`)
+- `server/run_all_ingestions.py` → Starts all ingestion services together
+- `server/app/` → Main ingestion API code
+- `server/student_2024/` → Student 2024 ingestion config/data
+- `server/faculty/` → Faculty ingestion config/data
+- `server/db/schema.sql` → PostgreSQL users table + seed users
+
+---
+
+## 3) Install Node dependencies
+
+From repo root:
 
 ```bash
 npm install
+```
+
+This installs workspace dependencies for root, `client`, and `server`.
+
+---
+
+## 4) Setup Python environment (for ingestion APIs)
+
+From repo root (PowerShell):
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r server\student_2024\requirements.txt
+pip install -r server\faculty\requirements.txt
+pip install fastapi uvicorn python-multipart
+```
+
+Why extra install? `fastapi`/`uvicorn` are used by ingestion runtime and are not listed in both requirements files.
+
+---
+
+## 5) Setup PostgreSQL (required for login)
+
+1. Create database (example name): `auth`
+2. Execute schema file:
+
+```sql
+-- run file: server/db/schema.sql
+```
+
+This creates `users` and seeds demo accounts.
+
+---
+
+## 6) Environment configuration
+
+### 6.1 Server auth/API env
+
+Edit `server/.env` and verify at least:
+
+- `AUTH_PORT=4005`
+- `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`
+- `AUTH_JWT_SECRET`
+- `LLAMA_PARSE_API_KEY` (needed for some ingestion flows)
+
+### 6.2 Ingestion env files
+
+Already present in repo:
+
+- `server/student_2024/.env.ingestion` (default `API_PORT=9001`)
+- `server/faculty/.env.ingestion` (default `API_PORT=9002`)
+
+Main ingestion instance is started via `server/run_all_ingestions.py` with `MAIN_INGESTION_PORT` defaulting to `9000`.
+
+### 6.3 Client env
+
+Edit `client/.env.local` and ensure URLs match your running services:
+
+- `VITE_AUTH_URL=http://localhost:4005`
+- `VITE_ADMIN_API_URL=http://localhost:9000`
+- `VITE_AUTO_INGEST_URL=http://localhost:9000/ingestion`
+- `VITE_STUDENT_2022_API_URL=http://localhost:9000/ingestion`
+- `VITE_STUDENT_2024_API_URL=http://localhost:9001/ingestion`
+- `VITE_FACULTY_API_URL=http://localhost:9002/ingestion`
+
+---
+
+## 7) First-time startup order (recommended)
+
+### Terminal A: Start all Python ingestion services
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+python server\run_all_ingestions.py
+```
+
+Expected ingestion ports:
+
+- `9000` → main ingestion
+- `9001` → student_2024 ingestion
+- `9002` → faculty ingestion
+
+### Terminal B: Start Node services + frontend
+
+```bash
 npm run dev
 ```
 
-- Web UI: http://localhost:5173
-- API: http://localhost:8787/api/health
+This starts:
 
-## Provider API keys (.env)
+- `server/src/index.js` (chat API, default `8787`)
+- `server/src/auth.js` (auth API, default `4005`)
+- `client` Vite dev server (default `5173`)
 
-Create a .env file at the repo root (see [.env.example](.env.example)) and add provider keys like:
+---
 
-- OPENAI_API_KEY
-- ANTHROPIC_API_KEY
-- GROQ_API_KEY
-- GOOGLE_API_KEY
-- MISTRAL_API_KEY
+## 8) URLs and health checks
 
-The server loads .env on startup and passes these to OpenCode automatically.
+- Frontend: `http://localhost:5173`
+- Chat API health: `http://localhost:8787/api/health`
+- Auth health: `http://localhost:4005/health`
+- Main ingestion health: `http://localhost:9000/ingestion/health`
+- Student ingestion health: `http://localhost:9001/ingestion/health`
+- Faculty ingestion health: `http://localhost:9002/ingestion/health`
 
-## Notes
+---
 
-- The backend starts an OpenCode server via the OpenCode CLI (`opencode-ai`).
-- By default, OpenCode picks a free port automatically.
-- You can force a fixed port (pick a free one):
+## 9) Default login users (from seeded schema)
 
-```bash
-set OPENCODE_PORT=8010
-```
+After running `server/db/schema.sql`:
 
-Then re-run `npm run dev`.
+- Student: `student.23aid@kongu.edu` / `studentpass`
+- Faculty: `faculty.ai@kongu.edu` / `facultypass`
+- Admin: `admin@kongu.edu` / `adminpass`
 
-- Automatic port selection is the default. You can also force it explicitly:
+Use these only for local/dev testing.
 
-```bash
-set OPENCODE_PORT=auto
-```
+---
 
-- OpenCode is started automatically when the API starts (to avoid first-message cold start). To disable and start it only when needed:
+## 10) Build and production-style run
 
-```bash
-set OPENCODE_EAGER_START=0
-```
-
-- If the very first request feels slow (cold start), you can start OpenCode immediately when the API starts:
+Build frontend:
 
 ```bash
-set OPENCODE_EAGER_START=1
+npm run build
 ```
 
-- If you hit `Timeout waiting for OpenCode server to start...`, you can increase the startup timeout:
+Run Node server only:
 
 ```bash
-set OPENCODE_STARTUP_TIMEOUT_MS=60000
+npm run start
 ```
 
-Note: a fixed port does not make the model itself faster; it just makes the OpenCode URL predictable.
+Note: production deployment still requires running ingestion services separately unless you provide an alternative runtime process manager.
 
-## If you see `spawn opencode ENOENT`
+---
 
-This means the backend cannot find the `opencode` CLI on PATH.
+## 11) Common issues and fixes
 
-Fix options:
+### Login fails with DB errors
 
-1) Add npm global bin to PATH (Windows)
+- Verify PostgreSQL is running.
+- Re-check `PG*` values in `server/.env`.
+- Ensure schema in `server/db/schema.sql` has been executed.
 
-- Find it with: `npm bin -g`
-- Add that folder to your user PATH (often `C:\Users\<you>\AppData\Roaming\npm`)
+### Frontend cannot call APIs (CORS/connection refused)
 
-2) Or set an explicit path to the CLI:
+- Ensure `client/.env.local` ports match running services.
+- Confirm all service processes are up.
 
-```bash
-set OPENCODE_BIN=C:\path\to\opencode.exe
-```
+### Ingestion fails at startup
 
-## MCP (Model Context Protocol)
+- Ensure Python venv is active.
+- Reinstall dependencies from both requirements files.
+- Verify `LLAMA_PARSE_API_KEY` if parse features are used.
 
-If you already have MCP servers configured (for example from a Copilot/MCP setup), this app can surface them and their tools.
+### `npm run dev` works but answers are empty/slow first time
 
-- The backend no longer overwrites `OPENCODE_CONFIG_CONTENT`, so OpenCode can load your normal config (including `mcp` entries).
-- MCP endpoints:
-	- `GET /api/mcp/status`
-	- `POST /api/mcp/add` (body: `{ "name": "...", "config": { ... } }`)
-	- `POST /api/mcp/connect` / `POST /api/mcp/disconnect` (body: `{ "name": "..." }`)
-- Tools endpoint:
-	- `GET /api/tools?provider=...&model=...`
+- Check OpenCode/provider credentials in your environment.
+- Check chat API logs in `server/src/index.js` process.
 
-Optional directory context:
-- `OPENCODE_DIRECTORY` controls the directory context OpenCode uses. If not set, the backend uses `INIT_CWD` (when started via npm) or `process.cwd()`.
+---
+
+## 12) Security notes (important)
+
+- Do not commit real API keys or DB passwords to git.
+- Rotate any secrets that were previously shared.
+- For non-local environments, replace seeded demo credentials and enforce strong passwords.

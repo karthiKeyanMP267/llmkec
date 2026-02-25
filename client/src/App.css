@@ -21,12 +21,15 @@
 
 /* Sidebar */
 .sidebar {
-  width: 260px;
+  width: clamp(220px, 22vw, 260px);
+  min-width: 0;
   background: linear-gradient(180deg, #fafbfc 0%, #f7f7f8 100%);
   border-right: 1px solid #e5e5e6;
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04);
+  transition: transform 0.3s ease;
 }
 
 .logoContainer {
@@ -288,6 +291,7 @@
   background-repeat: no-repeat;
   background-position: right 12px center;
   padding-right: 36px;
+  box-sizing: border-box;
 }
 
 /* Admin ingestion theme - Modern KEC Design */
@@ -306,9 +310,10 @@
 
 .adminLayoutGrid {
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: clamp(220px, 22vw, 280px) 1fr;
   height: calc(100vh - 4px);
   overflow: hidden;
+  min-width: 0;
 }
 
 .adminLayoutSidebar {
@@ -573,7 +578,7 @@
 
 /* Header Section */
 .adminHeader {
-  padding: 32px 40px;
+  padding: clamp(16px, 2.5vw, 32px) clamp(16px, 3.5vw, 40px);
   background: linear-gradient(135deg, rgba(0, 83, 155, 0.06) 0%, rgba(140, 198, 63, 0.04) 100%);
   border-bottom: 1px solid #e5e5e6;
 }
@@ -583,10 +588,20 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 24px;
+  flex-wrap: wrap;
+}
+
+.adminHeaderLeft {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
 }
 
 .adminHeaderTitle {
   flex: 1;
+  min-width: 0;
 }
 
 .adminKicker {
@@ -600,7 +615,7 @@
 
 .adminHeader h1 {
   margin: 0;
-  font-size: 32px;
+  font-size: clamp(20px, 3vw, 32px);
   font-weight: 800;
   color: #0f172a;
   background: linear-gradient(135deg, #00539B 0%, #8CC63F 100%);
@@ -612,9 +627,9 @@
 .adminSubhead {
   margin: 12px 0 0;
   color: #64748b;
-  font-size: 15px;
+  font-size: clamp(13px, 1.5vw, 15px);
   line-height: 1.6;
-  max-width: 600px;
+  max-width: min(600px, 100%);
 }
 
 .adminStatusBadge {
@@ -626,6 +641,8 @@
   border-radius: 12px;
   border: 2px solid #e5e5e6;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .adminStatusBadge .statusDot {
@@ -647,7 +664,8 @@
 .adminMainContent {
   flex: 1;
   overflow-y: auto;
-  padding: 24px 40px 48px;
+  padding: clamp(16px, 2vw, 24px) clamp(16px, 3.5vw, 40px) clamp(24px, 4vw, 48px);
+  min-width: 0;
 }
 
 .adminShell {
@@ -676,9 +694,10 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 24px 28px;
+  padding: clamp(16px, 2vw, 24px) clamp(16px, 2.5vw, 28px);
   background: linear-gradient(135deg, rgba(0, 83, 155, 0.04) 0%, rgba(140, 198, 63, 0.03) 100%);
   border-bottom: 1px solid #e5e5e6;
+  flex-wrap: wrap;
 }
 
 .cardHeaderIcon {
@@ -722,10 +741,11 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .cardBody {
-  padding: 28px;
+  padding: clamp(16px, 2.5vw, 28px);
 }
 
 /* Form Elements */
@@ -760,6 +780,7 @@
   font-size: 14px;
   transition: all 0.2s ease;
   margin-bottom: 12px;
+  box-sizing: border-box;
 }
 
 .formInput:hover,
@@ -896,7 +917,8 @@
 
 /* Filter Select */
 .filterSelect {
-  min-width: 200px;
+  min-width: min(200px, 100%);
+  width: auto;
   padding: 10px 16px;
   background: #ffffff;
   border: 2px solid #e5e5e6;
@@ -1112,6 +1134,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
   margin-bottom: 20px;
 }
 
@@ -1168,7 +1192,7 @@
 }
 
 .modernTable .metadata {
-  max-width: 300px;
+  max-width: min(300px, 30vw);
 }
 
 .modernTable .metadataCode {
@@ -1249,6 +1273,14 @@
   grid-template-columns: 1fr auto;
   gap: 16px;
   margin-bottom: 16px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+@media (max-width: 480px) {
+  .searchFormGrid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .searchResultsSection {
@@ -1261,6 +1293,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
   margin-bottom: 20px;
 }
 
@@ -1549,7 +1583,7 @@
   margin: 0;
   font-size: 14px;
   line-height: 1.6;
-  max-width: 400px;
+  max-width: min(400px, 100%);
 }
 
 /* Metadata Grid */
@@ -1921,16 +1955,13 @@
 /* Responsive Design */
 @media (max-width: 1024px) {
   .adminLayoutGrid {
-    grid-template-columns: 240px 1fr;
+    grid-template-columns: clamp(200px, 22vw, 240px) 1fr;
   }
+}
 
-  .adminMainContent {
-    padding: 20px 24px 40px;
-  }
-
-  .cardBody {
-    padding: 20px;
-  }
+/* Admin overlay: hidden by default, shown on mobile when sidebar is open */
+.adminOverlay {
+  display: none;
 }
 
 @media (max-width: 768px) {
@@ -1940,52 +1971,36 @@
 
   .adminLayoutSidebar {
     position: fixed;
-    left: -280px;
+    left: 0;
     top: 0;
     bottom: 0;
-    width: 280px;
+    width: clamp(220px, 75vw, 280px);
     z-index: 1000;
-    transition: left 0.3s ease;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
     box-shadow: 4px 0 16px rgba(0, 0, 0, 0.1);
   }
 
   .adminLayoutSidebar.open {
-    left: 0;
-  }
-
-  .adminHeader {
-    padding: 24px 20px;
+    transform: translateX(0);
   }
 
   .adminHeaderContent {
     flex-direction: column;
+    gap: 12px;
   }
 
-  .adminHeader h1 {
-    font-size: 24px;
-  }
-
-  .adminMainContent {
-    padding: 16px 20px 32px;
-  }
-
-  .cardHeader {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 20px;
+  .adminHeaderLeft {
+    width: 100%;
   }
 
   .cardHeaderActions {
     width: 100%;
-    flex-direction: column;
+    flex-wrap: wrap;
   }
 
   .filterSelect {
     width: 100%;
-  }
-
-  .cardBody {
-    padding: 16px;
   }
 
   .modernTable {
@@ -1995,6 +2010,14 @@
   .modernTable th,
   .modernTable td {
     padding: 10px 8px;
+  }
+
+  .adminOverlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 999;
   }
 }
 
@@ -2046,7 +2069,9 @@
 .messages {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  overflow-x: hidden;
+  padding: clamp(12px, 2vw, 20px);
+  min-width: 0;
 }
 
 .empty {
@@ -2055,24 +2080,26 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: clamp(12px, 2vw, 20px);
   max-width: 100%;
+  min-width: 0;
 }
 
 .emptyTitle {
-  font-size: 32px;
+  font-size: clamp(20px, 3.5vw, 32px);
   font-weight: 600;
   background: linear-gradient(135deg, #00539B 0%, #8CC63F 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  margin-bottom: 40px;
+  margin-bottom: clamp(24px, 4vw, 40px);
+  text-align: center;
 }
 
 .composerCentered {
   position: relative;
   width: 100%;
-  max-width: 750px;
+  max-width: min(750px, 100%);
   margin: 0 auto;
   display: flex;
   align-items: center;
@@ -2107,7 +2134,7 @@
 
 .suggestionBox {
   width: 100%;
-  max-width: 750px;
+  max-width: min(750px, 100%);
   margin: 16px auto 0;
 }
 
@@ -2160,8 +2187,8 @@
 
 .msg.user {
   background: #f7f7f8;
-  margin: 0 -20px 24px;
-  padding: 20px;
+  margin: 0 calc(-1 * clamp(12px, 2vw, 20px)) 24px;
+  padding: 20px clamp(12px, 2vw, 20px);
 }
 
 .msg.assistant {
@@ -2192,6 +2219,7 @@
 .bubble {
   flex: 1;
   min-width: 0;
+  overflow: visible;
 }
 
 .text {
@@ -2199,6 +2227,15 @@
   font-size: 16px;
   line-height: 1.75;
   word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: normal;
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+}
+
+.text > * {
+  max-width: 100%;
 }
 
 .text :is(p, ul, ol) {
@@ -2241,14 +2278,33 @@
   color: inherit;
 }
 
+/* Scrollable wrapper — placed around every table so content scrolls horizontally */
+.tableWrapper {
+  display: block;
+  overflow-x: auto;
+  overflow-y: hidden;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  max-width: 100%;
+  margin: 16px 0;
+}
+.tableWrapper:first-child,
+.tableWrapper:last-child {
+  margin-top: 0;
+}
+
 /* Tables - both .formattedTable class and raw HTML tables from markdown */
 .formattedTable,
 .text table,
 .bubble table {
-  width: 100%;
+  width: max-content;
+  max-width: none;
+  min-width: max(100%, 640px);
+  table-layout: auto;
   border-collapse: separate;
   border-spacing: 0;
-  margin: 16px 0;
+  margin: 0;
   border: 2px solid #1976D2;
   border-radius: 10px;
   overflow: hidden;
@@ -2276,7 +2332,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: clamp(16px, 3vw, 24px);
 }
 
 .loginCard {
@@ -2287,7 +2343,7 @@
   box-shadow: 0 18px 45px rgba(0, 0, 0, 0.12);
   display: grid;
   grid-template-columns: 1fr 1fr;
-  min-height: 640px;
+  min-height: clamp(480px, 70vh, 640px);
 }
 
 .loginHero {
@@ -2310,31 +2366,32 @@
   height: 100%;
   flex-direction: column;
   justify-content: center;
-  padding: 60px;
+  padding: clamp(32px, 5vw, 60px);
   gap: 12px;
 }
 
 .loginHeroContent h1 {
-  font-size: 38px;
+  font-size: clamp(22px, 3.5vw, 38px);
   font-weight: 800;
   letter-spacing: 0.5px;
   margin: 0;
 }
 
 .loginHeroContent p {
-  font-size: 18px;
+  font-size: clamp(14px, 1.8vw, 18px);
   opacity: 0.92;
   margin: 0;
 }
 
 .loginPanel {
-  padding: 48px;
+  padding: clamp(24px, 4vw, 48px);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 20px;
   background: #ffffff;
+  min-width: 0;
 }
 
 .loginLogo {
@@ -2344,7 +2401,7 @@
 }
 
 .loginTitle {
-  font-size: 30px;
+  font-size: clamp(22px, 3vw, 30px);
   color: #1f2937;
   margin: 0;
   font-weight: 700;
@@ -2358,7 +2415,7 @@
 
 .loginForm {
   width: 100%;
-  max-width: 420px;
+  max-width: min(420px, 100%);
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -2381,9 +2438,10 @@
   padding: 12px 14px;
   border: 1.5px solid #d1d5db;
   border-radius: 10px;
-  font-size: 15px;
+  font-size: clamp(14px, 1.6vw, 15px);
   transition: all 0.2s ease;
   outline: none;
+  box-sizing: border-box;
 }
 
 .loginInput:focus {
@@ -2645,7 +2703,7 @@
 
 /* Composer */
 .composerWrapper {
-  padding: 20px;
+  padding: clamp(10px, 2vw, 20px);
   background: transparent;
   display: flex;
   justify-content: center;
@@ -2656,7 +2714,7 @@
   display: flex;
   align-items: center;
   width: 100%;
-  max-width: 750px;
+  max-width: min(750px, 100%);
 }
 
 .composerBtn {
@@ -2745,14 +2803,101 @@
   gap: 12px;
 }
 
+/* Chat sidebar toggle button - only visible on mobile */
+.chatSidebarToggle {
+  display: none;
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 200;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border: 1.5px solid #e5e5e6;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  color: #374151;
+}
+
+.sidebarOverlay {
+  display: none;
+}
+
+
+/* Admin hamburger - only visible on mobile */
+.adminHamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: #ffffff;
+  border: 1.5px solid #e5e5e6;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #374151;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.adminHamburger:hover {
+  border-color: #00539B;
+  color: #00539B;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
+  .chatSidebarToggle {
+    display: flex;
+  }
+
+  .messages {
+    overflow-x: hidden;
+  }
+
+  .msg,
+  .bubble,
+  .text {
+    min-width: 0;
+  }
+
+  .text {
+    white-space: normal;
+  }
+
+  /* Push entire main area below the fixed hamburger button */
+  .main {
+    padding-top: 56px;
+  }
+
+  .sidebarOverlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 99;
+  }
+
+  .adminHamburger {
+    display: flex;
+  }
+
   .sidebar {
-    width: 280px;
-    position: absolute;
+    width: clamp(220px, 75vw, 280px);
+    position: fixed;
+    top: 0;
+    left: 0;
     height: 100%;
     z-index: 100;
+    transform: translateX(-100%);
     box-shadow: 2px 0 12px rgba(0, 0, 0, 0.1);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
   }
   
   .emptyTitle {

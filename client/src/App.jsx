@@ -14,7 +14,8 @@ const ROLE_TOP_QUESTIONS = {
     'What are the fee payment and due-date policies?',
     'List important academic deadlines for this semester.',
     'What are the rules for leave and medical certificate submission?',
-    'List the award of letter grade for MSC 2024'
+    'List the award of letter grade for MSC 2024',
+    'Tell me the syllabus for web technology aids 2024'
   ],
   FACULTY: [
     'What are the faculty leave norms and approval process?',
@@ -105,27 +106,29 @@ function renderStructuredPayload(payload) {
 
   if (Array.isArray(payload)) {
     if (payload.length && payload.every((row) => row && typeof row === 'object')) {
-      const headers = Object.keys(payload[0] || {})
+      const headers = Array.from(new Set(payload.flatMap((row) => Object.keys(row || {}))))
       if (!headers.length) return null
       return (
-        <table className="formattedTable">
-          <thead>
-            <tr>
-              {headers.map((h) => (
-                <th key={h}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {payload.map((row, idx) => (
-              <tr key={idx}>
+        <div className="tableWrapper">
+          <table className="formattedTable">
+            <thead>
+              <tr>
                 {headers.map((h) => (
-                  <td key={h}>{String(row?.[h] ?? '')}</td>
+                  <th key={h}>{h}</th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {payload.map((row, idx) => (
+                <tr key={idx}>
+                  {headers.map((h) => (
+                    <td key={h}>{String(row?.[h] ?? '')}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )
     }
   }
@@ -135,24 +138,26 @@ function renderStructuredPayload(payload) {
     const rows = Array.isArray(payload.table.rows) ? payload.table.rows : []
     if (headers.length && rows.length) {
       return (
-        <table className="formattedTable">
-          <thead>
-            <tr>
-              {headers.map((h, idx) => (
-                <th key={idx}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, idx) => (
-              <tr key={idx}>
-                {headers.map((_, hIdx) => (
-                  <td key={hIdx}>{String(row?.[hIdx] ?? '')}</td>
+        <div className="tableWrapper">
+          <table className="formattedTable">
+            <thead>
+              <tr>
+                {headers.map((h, idx) => (
+                  <th key={idx}>{h}</th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map((row, idx) => (
+                <tr key={idx}>
+                  {headers.map((_, hIdx) => (
+                    <td key={hIdx}>{String(row?.[hIdx] ?? '')}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )
     }
   }
@@ -172,24 +177,26 @@ function renderStructuredPayload(payload) {
       const headers = allKeys.map(normalizeKey).filter(Boolean)
 
       return (
-        <table className="formattedTable">
-          <thead>
-            <tr>
-              {headers.map((h) => (
-                <th key={h}>{prettyLabel(h)}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, idx) => (
-              <tr key={idx}>
+        <div className="tableWrapper">
+          <table className="formattedTable">
+            <thead>
+              <tr>
                 {headers.map((h) => (
-                  <td key={h}>{String(row?.[h] ?? '')}</td>
+                  <th key={h}>{prettyLabel(h)}</th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map((row, idx) => (
+                <tr key={idx}>
+                  {headers.map((h) => (
+                    <td key={h}>{String(row?.[h] ?? '')}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )
     }
   }
@@ -200,7 +207,17 @@ function renderStructuredPayload(payload) {
 function renderMarkdown(text) {
   // Enable GitHub-flavored markdown + LaTeX math (inline $...$ and block $$...$$)
   return (
-    <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex]}>
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm, remarkMath]}
+      rehypePlugins={[rehypeRaw, rehypeKatex]}
+      components={{
+        table: ({ node, ...props }) => (
+          <div className="tableWrapper">
+            <table {...props} />
+          </div>
+        ),
+      }}
+    >
       {String(text || '')}
     </ReactMarkdown>
   )
@@ -354,6 +371,7 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [abortController, setAbortController] = useState(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const scrollRef = useAutoScroll(messages.length + (loading ? 1 : 0))
 
@@ -513,11 +531,13 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
     setThreadId(null)
     setMessages([])
     setError('')
+    setSidebarOpen(false)
   }
 
   function loadConversation(convId) {
     setCurrentConvId(convId)
     setError('')
+    setSidebarOpen(false)
     try {
       const saved = localStorage.getItem(`${storagePrefix}-messages-${convId}`)
       if (saved) {
@@ -552,7 +572,22 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
     <div className="app">
       <div className="topLine"></div>
       <div className="appContent">
-        <aside className="sidebar">
+        {sidebarOpen && (
+          <div className="sidebarOverlay" onClick={() => setSidebarOpen(false)} />
+        )}
+        <button
+          className="chatSidebarToggle"
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          aria-label="Toggle sidebar"
+          type="button"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+        <aside className={`sidebar${sidebarOpen ? ' open' : ''}`}>
           <div className="logoContainer">
             <img src="/kec-logo.png" alt="KEC - Kongu Engineering College" className="logo" />
           </div>
@@ -638,7 +673,7 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
                 </form>
 
                 <div className="suggestionBox">
-                  <div className="suggestionTitle">Top 5 Questions</div>
+                  <div className="suggestionTitle">Top Questions</div>
                   <div className="suggestionList">
                     {topQuestions.map((question) => (
                       <button
