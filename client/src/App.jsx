@@ -374,6 +374,16 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const scrollRef = useAutoScroll(messages.length + (loading ? 1 : 0))
+  const composerRef = useRef(null)
+
+  const scrollToBottom = () => {
+    const el = scrollRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }
+
+  const focusComposer = () => {
+    if (composerRef.current) composerRef.current.focus()
+  }
 
   // Persist conversations to localStorage
   useEffect(() => {
@@ -393,6 +403,15 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
       console.error('Failed to save messages:', e)
     }
   }, [currentConvId, messages, threadId, storagePrefix])
+
+  // After conversations change, keep the view anchored to the latest message and keep the input reachable.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      scrollToBottom()
+      focusComposer()
+    }, 30)
+    return () => clearTimeout(timer)
+  }, [currentConvId, messages.length])
 
   function stopGeneration() {
     if (abortController) {
@@ -532,6 +551,10 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
     setMessages([])
     setError('')
     setSidebarOpen(false)
+    setTimeout(() => {
+      scrollToBottom()
+      focusComposer()
+    }, 0)
   }
 
   function loadConversation(convId) {
@@ -553,6 +576,10 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
       setMessages([])
       setThreadId(null)
     }
+    setTimeout(() => {
+      scrollToBottom()
+      focusComposer()
+    }, 0)
   }
 
   function deleteConversation(convId, e) {
@@ -655,6 +682,7 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
                     className="composerInput"
                     rows={1}
                     value={input}
+                    ref={composerRef}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder="Ask here"
                     disabled={loading}
@@ -742,6 +770,7 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
                   className="composerInput"
                   rows={1}
                   value={input}
+                  ref={composerRef}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Ask here"
                   disabled={loading}
