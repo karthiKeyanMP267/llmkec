@@ -25,7 +25,7 @@ logger = get_logger("ingestion_api")
 
 def _init_pipeline(app: FastAPI):
     """Initialize all ingestion services and attach to app.state."""
-    pdf_processor = PDFProcessorService()
+    pdf_processor = PDFProcessorService(api_key=app_config.llama_parse_api_key)
     chunking_service = ChunkingService(
         chunk_size=app_config.chunk_size,
         chunk_overlap=app_config.chunk_overlap,

@@ -36,14 +36,12 @@ export function useIngestionAdmin(defaultBaseUrl = AUTO_API_URL, endpoints = ING
   const [renameFrom, setRenameFrom] = useState('')
   const [renameTo, setRenameTo] = useState('')
 
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchCollection, setSearchCollection] = useState('')
-  const [searchN, setSearchN] = useState(8)
-  const [searchResults, setSearchResults] = useState([])
-
   const [chunkSize, setChunkSize] = useState('')
   const [chunkOverlap, setChunkOverlap] = useState('')
   const [modelKey, setModelKey] = useState('')
+  const [llamaParseKey, setLlamaParseKey] = useState('')
+  const [llamaParseConfigured, setLlamaParseConfigured] = useState(false)
+  const [llamaParseLastFour, setLlamaParseLastFour] = useState('')
 
   const resetStatus = () => {
     setStatus('')
@@ -103,6 +101,9 @@ export function useIngestionAdmin(defaultBaseUrl = AUTO_API_URL, endpoints = ING
       setChunkSize(String(data?.chunking?.chunk_size || ''))
       setChunkOverlap(String(data?.chunking?.chunk_overlap || ''))
       setModelKey(String(data?.embedding_model?.key || ''))
+      setLlamaParseConfigured(Boolean(data?.llama_parse?.configured))
+      setLlamaParseLastFour(data?.llama_parse?.last_four || '')
+      setLlamaParseKey('')
     } catch (err) {
       setError(err.message)
     }
@@ -173,6 +174,9 @@ export function useIngestionAdmin(defaultBaseUrl = AUTO_API_URL, endpoints = ING
     setLoadingDocDetail(false)
     setError('')
     setStatus('')
+    setLlamaParseConfigured(false)
+    setLlamaParseLastFour('')
+    setLlamaParseKey('')
 
     if (!authToken) {
       setError('Please login again to continue ingestion management')
@@ -294,6 +298,31 @@ export function useIngestionAdmin(defaultBaseUrl = AUTO_API_URL, endpoints = ING
           }
         }
       }
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy('')
+    }
+  }
+
+  const handleLlamaParseKeyUpdate = async (persistToEnv = true) => {
+    resetStatus()
+    if (!llamaParseKey.trim()) {
+      setError('Enter a LlamaParse API key')
+      return
+    }
+    setBusy('config')
+    try {
+      const data = await apiFetch('/api/v1/config/llamaparse-key', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: llamaParseKey.trim(), persist_to_env: persistToEnv }),
+      })
+      setStatus(data?.message || 'LlamaParse API key updated')
+      setLlamaParseConfigured(true)
+      setLlamaParseLastFour(data?.last_four || '')
+      setLlamaParseKey('')
+      await loadConfig()
     } catch (err) {
       setError(err.message)
     } finally {
@@ -433,30 +462,6 @@ export function useIngestionAdmin(defaultBaseUrl = AUTO_API_URL, endpoints = ING
     }
   }
 
-  const handleSearch = async () => {
-    resetStatus()
-    if (!searchQuery.trim()) {
-      setError('Enter a search query')
-      return
-    }
-    setBusy('search')
-    try {
-      const sourceKey = searchCollection ? parseCollectionId(searchCollection).sourceKey : parseCollectionId(docFilter).sourceKey
-      const cfg = endpoints?.[sourceKey] || Object.values(endpoints || {})[0]
-      const path = searchCollection ? `/api/v1/search/${encodeURIComponent(parseCollectionId(searchCollection).name)}` : '/api/v1/search/'
-      const data = await apiFetch(path, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: searchQuery.trim(), n_results: Number(searchN) || 8 }),
-      }, cfg?.baseUrl || defaultBaseUrl)
-      setSearchResults(data?.results || [])
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setBusy('')
-    }
-  }
-
   const handleModelChange = async () => {
     resetStatus()
     if (!modelKey) return
@@ -538,13 +543,6 @@ export function useIngestionAdmin(defaultBaseUrl = AUTO_API_URL, endpoints = ING
     setRenameFrom,
     renameTo,
     setRenameTo,
-    searchQuery,
-    setSearchQuery,
-    searchCollection,
-    setSearchCollection,
-    searchN,
-    setSearchN,
-    searchResults,
     selectedDocId,
     setSelectedDocId,
     docDetail,
@@ -555,6 +553,10 @@ export function useIngestionAdmin(defaultBaseUrl = AUTO_API_URL, endpoints = ING
     setChunkOverlap,
     modelKey,
     setModelKey,
+    llamaParseKey,
+    setLlamaParseKey,
+    llamaParseConfigured,
+    llamaParseLastFour,
     loadDocuments,
     loadDocumentDetail,
     handleUpload,
@@ -564,8 +566,8 @@ export function useIngestionAdmin(defaultBaseUrl = AUTO_API_URL, endpoints = ING
     handleRenameCollection,
     handleDeleteCollection,
     handleResetCollection,
-    handleSearch,
     handleModelChange,
     handleChunkUpdate,
+    handleLlamaParseKeyUpdate,
   }
 }

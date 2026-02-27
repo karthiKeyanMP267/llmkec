@@ -141,12 +141,18 @@ class ChunkingConfigUpdateRequest(BaseModel):
     chunk_overlap: Optional[int] = Field(None, ge=0)
 
 
+class LlamaParseKeyUpdateRequest(BaseModel):
+    api_key: str = Field(..., min_length=8, description="LlamaParse API key")
+    persist_to_env: bool = Field(default=True, description="Persist key to .env for restarts")
+
+
 class ConfigResponse(BaseModel):
     embedding_model: Dict[str, Any]
     chunking: Dict[str, Any]
     paths: Dict[str, str]
     default_collection: str
     server: Dict[str, Any]
+    llama_parse: Dict[str, Any] = Field(default_factory=dict)
 
 
 class HealthResponse(BaseModel):

@@ -1,4 +1,8 @@
-export function ConfigSection({ models, modelKey, setModelKey, chunkSize, setChunkSize, chunkOverlap, setChunkOverlap, busy, onModelChange, onChunkUpdate }) {
+import { useState } from 'react'
+
+export function ConfigSection({ models, modelKey, setModelKey, chunkSize, setChunkSize, chunkOverlap, setChunkOverlap, llamaParseKey, setLlamaParseKey, llamaParseConfigured, llamaParseLastFour, busy, onModelChange, onChunkUpdate, onLlamaParseKeyUpdate }) {
+  const [persistToEnv, setPersistToEnv] = useState(true)
+
   return (
     <section className="modernAdminCard">
       <div className="cardHeader">
@@ -37,6 +41,52 @@ export function ConfigSection({ models, modelKey, setModelKey, chunkSize, setChu
         </div>
 
         <div className="configDivider"/>
+
+        <div className="formGroup">
+          <label className="formLabel">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M4 4h16v16H4z" />
+              <path d="M8 8h8v8H8z" />
+            </svg>
+            LlamaParse API Key
+          </label>
+          <div className="statusRow" style={{ marginBottom: 8 }}>
+            <span className={`statusPill ${llamaParseConfigured ? 'success' : 'warning'}`}>
+              {llamaParseConfigured ? `Configured${llamaParseLastFour ? ` (…${llamaParseLastFour})` : ''}` : 'Not set'}
+            </span>
+            <small style={{ color: '#6b7280' }}>
+              Used for PDF parsing; update when rotating free-tier keys.
+            </small>
+          </div>
+          <input
+            className="formInput"
+            type="password"
+            placeholder="Enter new LlamaParse API key"
+            value={llamaParseKey}
+            onChange={(e) => setLlamaParseKey(e.target.value)}
+            autoComplete="off"
+          />
+          <label className="checkboxLabel" style={{ marginTop: 8 }}>
+            <input
+              type="checkbox"
+              checked={persistToEnv}
+              onChange={(e) => setPersistToEnv(e.target.checked)}
+            />
+            <span>Persist to .env so restarts keep this key</span>
+          </label>
+          <button
+            className="primaryBtn"
+            disabled={busy === 'config'}
+            onClick={() => onLlamaParseKeyUpdate(persistToEnv)}
+            style={{ marginTop: '12px' }}
+          >
+            {busy === 'config' ? (
+              <><span className="btnSpinner"/>Saving...</>
+            ) : (
+              <>🔑 Update LlamaParse Key</>
+            )}
+          </button>
+        </div>
 
         <div className="chunkingGrid">
           <div className="formGroup">

@@ -5,7 +5,6 @@ import { UploadSection } from '../components/admin/UploadSection'
 import { DocumentsSection } from '../components/admin/DocumentsSection'
 import { CollectionsSection } from '../components/admin/CollectionsSection'
 import { IngestedContentSection } from '../components/admin/IngestedContentSection'
-import { SearchSection } from '../components/admin/SearchSection'
 import { ConfigSection } from '../components/admin/ConfigSection'
 import AdminNav from '../components/admin/AdminNav'
 import { AUTO_API_URL } from '../config'
@@ -184,21 +183,6 @@ function AdminIngestionPage({ session, onLogout }) {
           />
         )}
 
-        {activeSection === 'search' && (
-          <SearchSection
-            collections={scopedCollections}
-            searchQuery={state.searchQuery}
-            setSearchQuery={state.setSearchQuery}
-            searchCollection={state.searchCollection}
-            setSearchCollection={state.setSearchCollection}
-            searchN={state.searchN}
-            setSearchN={state.setSearchN}
-            searchResults={state.searchResults}
-            busy={state.busy}
-            onSearch={state.handleSearch}
-          />
-        )}
-
         {activeSection === 'config' && (
           <ConfigSection
             models={state.models}
@@ -208,9 +192,14 @@ function AdminIngestionPage({ session, onLogout }) {
             setChunkSize={state.setChunkSize}
             chunkOverlap={state.chunkOverlap}
             setChunkOverlap={state.setChunkOverlap}
+            llamaParseKey={state.llamaParseKey}
+            setLlamaParseKey={state.setLlamaParseKey}
+            llamaParseConfigured={state.llamaParseConfigured}
+            llamaParseLastFour={state.llamaParseLastFour}
             busy={state.busy}
             onModelChange={state.handleModelChange}
             onChunkUpdate={state.handleChunkUpdate}
+            onLlamaParseKeyUpdate={state.handleLlamaParseKeyUpdate}
           />
         )}
       </main>

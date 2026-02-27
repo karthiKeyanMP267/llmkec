@@ -7,6 +7,7 @@ from app.ingestion_api.models.schemas import (
     ConfigResponse,
     EmbeddingModelInfo,
     EmbeddingModelUpdateRequest,
+    LlamaParseKeyUpdateRequest,
 )
 from app.ingestion_api.dependencies import require_admin_user
 from app.ingestion_api.utils.logger import get_logger
@@ -66,3 +67,23 @@ async def update_chunking(request: ChunkingConfigUpdateRequest):
     except ValueError as e:
         logger.error("Failed to update chunking config: %s", e)
         return JSONResponse(status_code=400, content={"detail": str(e)})
+
+@router.put("/llamaparse-key")
+async def update_llamaparse_key(request: LlamaParseKeyUpdateRequest):
+    pipeline = _get_pipeline()
+    try:
+        app_config.llama_parse_api_key = request.api_key
+        persist = request.persist_to_env if request.persist_to_env is not None else True
+        pipeline.pdf_processor.set_api_key(request.api_key, persist=persist)
+        return {
+            "configured": True,
+            "last_four": app_config.llama_parse_last_four,
+            "persisted": bool(persist),
+            "message": "LlamaParse API key updated",
+        }
+    except ValueError as e:
+        logger.error("Failed to update LlamaParse key: %s", e)
+        return JSONResponse(status_code=400, content={"detail": str(e)})
+    except Exception as e:
+        logger.error("Unexpected error updating LlamaParse key: %s", e)
+        return JSONResponse(status_code=500, content={"detail": f"Failed to update LlamaParse key: {e}"})

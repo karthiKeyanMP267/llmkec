@@ -66,6 +66,8 @@ class AppConfig:
         self._chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "300"))
         self._default_collection = os.getenv("DEFAULT_COLLECTION", "auto_ingestion_docs")
 
+        self._llama_parse_api_key = (os.getenv("LLAMA_PARSE_API_KEY", "").strip())
+
         self._host = os.getenv("API_HOST", "0.0.0.0")
         self._port = int(os.getenv("API_PORT", "8000"))
 
@@ -141,6 +143,20 @@ class AppConfig:
         self._default_collection = value
 
     @property
+    def llama_parse_api_key(self) -> str:
+        return self._llama_parse_api_key
+
+    @llama_parse_api_key.setter
+    def llama_parse_api_key(self, value: str):
+        self._llama_parse_api_key = value.strip()
+        if self._llama_parse_api_key:
+            os.environ["LLAMA_PARSE_API_KEY"] = self._llama_parse_api_key
+
+    @property
+    def llama_parse_last_four(self) -> str:
+        return self._llama_parse_api_key[-4:] if self._llama_parse_api_key else ""
+
+    @property
     def host(self) -> str:
         return self._host
 
@@ -185,6 +201,10 @@ class AppConfig:
             },
             "default_collection": self._default_collection,
             "server": {"host": self._host, "port": self._port},
+            "llama_parse": {
+                "configured": bool(self._llama_parse_api_key),
+                "last_four": self.llama_parse_last_four,
+            },
         }
 
 

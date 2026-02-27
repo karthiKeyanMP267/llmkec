@@ -812,6 +812,54 @@
   gap: 4px;
 }
 
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 12px;
+  border: 1px solid transparent;
+}
+
+.statusPill.success {
+  color: #0f9a6b;
+  background: rgba(15, 154, 107, 0.12);
+  border-color: rgba(15, 154, 107, 0.3);
+}
+
+.statusPill.warning {
+  color: #b45309;
+  background: rgba(250, 204, 21, 0.14);
+  border-color: rgba(180, 83, 9, 0.25);
+}
+
+.checkboxLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #374151;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(0, 83, 155, 0.05);
+  border: 1px solid #e5e5e6;
+  width: fit-content;
+}
+
+.checkboxLabel input {
+  width: 16px;
+  height: 16px;
+}
+
 .fileCount {
   display: inline-flex;
   align-items: center;
@@ -987,6 +1035,36 @@
   font-size: 11px;
   color: #64748b;
   white-space: nowrap;
+}
+
+.docIdCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.copyBtn {
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.copyBtn:hover {
+  border-color: #cbd5e1;
+  color: #0f172a;
+  transform: translateY(-1px);
+}
+
+.copyBtn:active {
+  transform: scale(0.98);
 }
 
 .modernTable .filename {
