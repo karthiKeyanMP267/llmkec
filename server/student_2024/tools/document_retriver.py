@@ -1,4 +1,5 @@
 import chromadb
+import logging
 import os
 from pathlib import Path
 from typing import List
@@ -8,6 +9,12 @@ from llama_index.core import Settings, VectorStoreIndex
 from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.vector_stores.chroma import ChromaVectorStore
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] %(levelname)s %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 
 CHROMA_PATH = str(Path(__file__).resolve().parents[1] / "student_db_2024")
@@ -42,25 +49,29 @@ def _resolve_collection_names(client: chromadb.PersistentClient) -> List[str]:
         requested = [name.strip() for name in requested_many.split(",") if name.strip()]
         missing = [name for name in requested if name not in available_set]
         if missing:
-            raise ValueError(
-                f"Configured collections not found: {', '.join(missing)}. "
-                f"Available collections: {', '.join(available) or 'none'}"
+            logger.error(
+                "Configured collections not found: %s. Available collections: %s",
+                ', '.join(missing), ', '.join(available) or 'none'
             )
+            return []
         return requested
 
     requested_single = (os.getenv("STUDENT_COLLECTION") or os.getenv("COLLECTION_NAME") or "").strip()
     if requested_single:
         if requested_single in available_set:
             return [requested_single]
-        raise ValueError(
-            f"Configured collection '{requested_single}' not found. Available collections: {', '.join(available) or 'none'}"
+        logger.error(
+            "Configured collection '%s' not found. Available collections: %s",
+            requested_single, ', '.join(available) or 'none'
         )
+        return []
 
     default_candidates = [name for name in ("student_data_2024", "student_data_2022", "rag_demo") if name in available_set]
     if default_candidates:
         return default_candidates
 
-    raise ValueError(f"No supported collection found. Available collections: {', '.join(available) or 'none'}")
+    logger.error("No supported collection found. Available collections: %s", ', '.join(available) or 'none')
+    return []
 
 
 # Keep embeddings consistent with ingestion
@@ -92,20 +103,24 @@ def build_query_engine(index: VectorStoreIndex):
 
 
 async def query_rag(question: str) -> str:
-    client = chromadb.PersistentClient(path=CHROMA_PATH)
-    collection_names = _resolve_collection_names(client)
+    try:
+        client = chromadb.PersistentClient(path=CHROMA_PATH)
+        collection_names = _resolve_collection_names(client)
 
-    outputs: List[str] = []
-    for collection_name in collection_names:
-        index = load_index(collection_name)
-        query_engine = build_query_engine(index)
-        response = await query_engine.aquery(question)
-        text = str(response).strip()
-        if not text:
-            continue
-        outputs.append(f"[{collection_name}]\n{text}")
+        outputs: List[str] = []
+        for collection_name in collection_names:
+            index = load_index(collection_name)
+            query_engine = build_query_engine(index)
+            response = await query_engine.aquery(question)
+            text = str(response).strip()
+            if not text:
+                continue
+            outputs.append(f"[{collection_name}]\n{text}")
 
-    if not outputs:
-        return "No relevant content found in configured student collections."
+        if not outputs:
+            return "No relevant content found in configured student collections."
 
-    return "\n\n".join(outputs)
+        return "\n\n".join(outputs)
+    except Exception as e:
+        logger.error("query_rag failed: %s", e)
+        return f"Error: Failed to query student regulations: {str(e)}"

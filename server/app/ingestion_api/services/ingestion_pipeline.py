@@ -162,17 +162,20 @@ class IngestionPipeline:
         # Parse PDF with LlamaParse and chunk via llama-index
         documents, pages = self.pdf_processor.extract(file_path)
         if not documents:
-            raise ValueError("No parseable content found in PDF")
+            logger.error("No parseable content found in PDF for doc_id=%s", doc_id)
+            return "No parseable content found in PDF"
 
         chunks = self.chunking_service.chunk_documents(documents)
         docs = [c.get_content() for c in chunks]
         if not docs:
-            raise ValueError("No chunks generated from parsed PDF content")
+            logger.error("No chunks generated from parsed PDF content for doc_id=%s", doc_id)
+            return "No chunks generated from parsed PDF content"
 
         # Embed
         embeddings = self.embedding_service.embed_documents(docs)
         if not embeddings:
-            raise ValueError("Embedding generation returned empty output")
+            logger.error("Embedding generation returned empty output for doc_id=%s", doc_id)
+            return "Embedding generation returned empty output"
 
         # Prepare metadata for each chunk
         metadatas = []
@@ -205,7 +208,10 @@ class IngestionPipeline:
     def process_document(self, doc_id: str, file_path: str, collection_name: str):
         try:
             self.metadata_store.update_status(doc_id, IngestionStatus.PROCESSING.value)
-            self._process(doc_id, file_path, collection_name)
+            error = self._process(doc_id, file_path, collection_name)
+            if error:
+                logger.error("Processing failed for %s: %s", doc_id, error)
+                self.metadata_store.update_status(doc_id, IngestionStatus.FAILED.value, error)
         except Exception as e:
             logger.exception("Processing failed for %s", doc_id)
             self.metadata_store.update_status(doc_id, IngestionStatus.FAILED.value, str(e))
@@ -221,7 +227,8 @@ class IngestionPipeline:
     def delete_document(self, doc_id: str) -> Dict[str, Any]:
         doc = self.metadata_store.get_document(doc_id)
         if not doc:
-            raise ValueError("Document not found")
+            logger.error("Document not found: %s", doc_id)
+            return {"doc_id": doc_id, "error": "Document not found", "chunks_deleted": 0}
         chunks_deleted = self.chroma_service.delete_document(doc["collection_name"], doc_id)
         self.metadata_store.delete_document(doc_id)
         return {"doc_id": doc_id, "filename": doc.get("filename"), "chunks_deleted": chunks_deleted or 0}

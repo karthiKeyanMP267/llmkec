@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import { Pool } from "pg";
 import jwt from "jsonwebtoken";
+import logger from "./logger.js";
 
 // Simple Express server dedicated to login/authentication only.
 const PORT = Number(process.env.AUTH_PORT || process.env.PORT || 4000);
@@ -61,6 +62,7 @@ app.post("/auth/login", async (req, res) => {
       "SELECT id, email, password, role FROM users WHERE email = $1 LIMIT 1",
       [normalizedEmail]
     );
+    logger.debug("Database query result:", result);
     const user = result.rows[0];
 
     if (!user || user.password !== password) {
@@ -93,7 +95,7 @@ app.post("/auth/login", async (req, res) => {
       message: `${role} login successful`,
     });
   } catch (error) {
-    console.error("Login error", error);
+    logger.error("Login error", error);
     return res.status(500).json({ ok: false, error: "Server error" });
   }
 });
@@ -101,5 +103,5 @@ app.post("/auth/login", async (req, res) => {
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
 
 app.listen(PORT, () => {
-  console.log(`Auth server listening on http://localhost:${PORT}`);
+  logger.info("Auth server listening on http://localhost:%d", PORT);
 });

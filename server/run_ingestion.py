@@ -7,15 +7,20 @@ Environment variables:
 - CHROMA_DATA_DIR, UPLOADS_DIR, METADATA_DB_PATH, DEFAULT_COLLECTION, EMBEDDING_MODEL, CHUNK_SIZE, CHUNK_OVERLAP
 """
 
+import logging
 import os
 
 import uvicorn
 
 from app.ingestion_api.config import app_config
 
+logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger(__name__)
+
 
 def main():
     reload_enabled = os.getenv("API_RELOAD", "false").lower() in {"1", "true", "yes", "on"}
+    logger.info("Starting ingestion API on %s:%d (reload=%s)", app_config.host, app_config.port, reload_enabled)
     uvicorn.run(
         "app.main:app",
         host=app_config.host,

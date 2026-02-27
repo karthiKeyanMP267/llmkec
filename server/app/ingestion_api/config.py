@@ -6,6 +6,10 @@ import os
 from pathlib import Path
 from typing import Optional
 
+from app.ingestion_api.utils.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 class AppConfig:
     AVAILABLE_MODELS = {
@@ -94,7 +98,8 @@ class AppConfig:
     @current_model_key.setter
     def current_model_key(self, value: str):
         if value not in self.AVAILABLE_MODELS:
-            raise ValueError(f"Unknown model: {value}")
+            logger.error("Unknown model: %s", value)
+            return
         self._current_model_key = value
 
     @property
@@ -112,7 +117,8 @@ class AppConfig:
     @chunk_size.setter
     def chunk_size(self, value: int):
         if value < 64 or value > 4096:
-            raise ValueError("Chunk size must be between 64 and 4096")
+            logger.error("Chunk size must be between 64 and 4096, got %d", value)
+            return
         self._chunk_size = value
 
     @property
@@ -122,7 +128,8 @@ class AppConfig:
     @chunk_overlap.setter
     def chunk_overlap(self, value: int):
         if value < 0 or value >= self._chunk_size:
-            raise ValueError("Chunk overlap must be between 0 and chunk_size-1")
+            logger.error("Chunk overlap must be between 0 and chunk_size-1, got %d", value)
+            return
         self._chunk_overlap = value
 
     @property
@@ -144,7 +151,8 @@ class AppConfig:
     def get_model_info(self, model_key: Optional[str] = None) -> dict:
         key = model_key or self._current_model_key
         if key not in self.AVAILABLE_MODELS:
-            raise ValueError(f"Unknown model: {key}")
+            logger.error("Unknown model: %s", key)
+            return {}
         info = self.AVAILABLE_MODELS[key].copy()
         info["key"] = key
         info["is_current"] = key == self._current_model_key

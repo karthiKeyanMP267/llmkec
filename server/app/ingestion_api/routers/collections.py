@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
 
 from app.ingestion_api.models.schemas import (
     CollectionCreateRequest,
@@ -8,6 +9,9 @@ from app.ingestion_api.models.schemas import (
     CollectionUpdateRequest,
 )
 from app.ingestion_api.dependencies import require_admin_user
+from app.ingestion_api.utils.logger import get_logger
+
+logger = get_logger("router.collections")
 
 router = APIRouter(prefix="/api/v1/collections", tags=["Collections"], dependencies=[Depends(require_admin_user)])
 
@@ -43,14 +47,16 @@ async def create_collection(request: CollectionCreateRequest):
             metadata=result.get("metadata"),
         )
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error("Failed to create collection: %s", e)
+        return JSONResponse(status_code=400, content={"detail": str(e)})
 
 
 @router.get("/{name}", response_model=CollectionInfo)
 async def get_collection(name: str):
     pipeline = _get_pipeline()
     if not pipeline.chroma_service.collection_exists(name):
-        raise HTTPException(status_code=404, detail=f"Collection '{name}' not found")
+        logger.error("Collection '%s' not found", name)
+        return JSONResponse(status_code=404, content={"detail": f"Collection '{name}' not found"})
     info = pipeline.chroma_service.get_collection_info(name)
     return CollectionInfo(
         name=info["name"],
@@ -64,7 +70,8 @@ async def get_collection(name: str):
 async def update_collection(name: str, request: CollectionUpdateRequest):
     pipeline = _get_pipeline()
     if not pipeline.chroma_service.collection_exists(name):
-        raise HTTPException(status_code=404, detail=f"Collection '{name}' not found")
+        logger.error("Collection '%s' not found", name)
+        return JSONResponse(status_code=404, content={"detail": f"Collection '{name}' not found"})
     try:
         target_name = request.new_name or name
         result = pipeline.chroma_service.rename_collection(
@@ -80,14 +87,16 @@ async def update_collection(name: str, request: CollectionUpdateRequest):
             metadata=result.get("metadata"),
         )
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error("Failed to update collection '%s': %s", name, e)
+        return JSONResponse(status_code=400, content={"detail": str(e)})
 
 
 @router.delete("/{name}", response_model=CollectionDeleteResponse)
 async def delete_collection(name: str):
     pipeline = _get_pipeline()
     if not pipeline.chroma_service.collection_exists(name):
-        raise HTTPException(status_code=404, detail=f"Collection '{name}' not found")
+        logger.error("Collection '%s' not found for deletion", name)
+        return JSONResponse(status_code=404, content={"detail": f"Collection '{name}' not found"})
     count = pipeline.chroma_service.delete_collection(name)
     return CollectionDeleteResponse(
         name=name,
@@ -100,7 +109,8 @@ async def delete_collection(name: str):
 async def reset_collection(name: str):
     pipeline = _get_pipeline()
     if not pipeline.chroma_service.collection_exists(name):
-        raise HTTPException(status_code=404, detail=f"Collection '{name}' not found")
+        logger.error("Collection '%s' not found for reset", name)
+        return JSONResponse(status_code=404, content={"detail": f"Collection '{name}' not found"})
     count = pipeline.chroma_service.reset_collection(name)
     return CollectionDeleteResponse(
         name=name,

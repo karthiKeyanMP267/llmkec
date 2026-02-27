@@ -9,12 +9,16 @@ This script:
 """
 
 import json
+import logging
 import os
 import sys
 from pathlib import Path
 from typing import List, Dict, Any
 import chromadb
 from sentence_transformers import SentenceTransformer
+
+logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger(__name__)
 
 
 class JSONToChromaIngester:
@@ -42,25 +46,25 @@ class JSONToChromaIngester:
         self.chroma_db_path = chroma_db_path
         
         # Initialize sentence transformer
-        print(f"Loading sentence transformer model: {model_name}")
+        logger.info("Loading sentence transformer model: %s", model_name)
         self.model = SentenceTransformer(model_name)
         
         # Initialize ChromaDB with modern API
-        print(f"Initializing ChromaDB at: {chroma_db_path}")
+        logger.info("Initializing ChromaDB at: %s", chroma_db_path)
         self.client = chromadb.PersistentClient(path=chroma_db_path)
         
         # Create or get collection
         try:
             self.client.delete_collection(name=collection_name)
-            print(f"Deleted existing collection: {collection_name}")
-        except:
-            pass
+            logger.info("Deleted existing collection: %s", collection_name)
+        except Exception:
+            logger.debug("Collection '%s' not found, skipping delete", collection_name)
         
         self.collection = self.client.create_collection(
             name=collection_name,
             metadata={"hnsw:space": "cosine"}
         )
-        print(f"Created collection: {collection_name}")
+        logger.info("Created collection: %s", collection_name)
     
     def load_json_files(self) -> List[Dict[str, Any]]:
         """
@@ -72,10 +76,10 @@ class JSONToChromaIngester:
         all_documents = []
         json_files = list(Path(self.json_data_dir).glob("*.json"))
         
-        print(f"\nFound {len(json_files)} JSON files")
+        logger.info("Found %d JSON files", len(json_files))
         
         for json_file in json_files:
-            print(f"  - Loading: {json_file.name}")
+            logger.info("  - Loading: %s", json_file.name)
             try:
                 with open(json_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
@@ -93,9 +97,9 @@ class JSONToChromaIngester:
                         data['_file_prefix'] = file_prefix
                         all_documents.append(data)
             except Exception as e:
-                print(f"    ERROR: Failed to load {json_file.name}: {e}")
+                logger.error("    Failed to load %s: %s", json_file.name, e)
         
-        print(f"Total documents loaded: {len(all_documents)}")
+        logger.info("Total documents loaded: %d", len(all_documents))
         return all_documents
     
     def ingest_to_chroma(self) -> None:
@@ -105,7 +109,7 @@ class JSONToChromaIngester:
         documents = self.load_json_files()
         
         if not documents:
-            print("No documents found to ingest!")
+            logger.warning("No documents found to ingest!")
             return
         
         # Prepare data for ChromaDB
@@ -113,7 +117,7 @@ class JSONToChromaIngester:
         texts = []
         metadatas = []
         
-        print(f"\nPreparing {len(documents)} documents for ingestion...")
+        logger.info("Preparing %d documents for ingestion...", len(documents))
         
         for doc in documents:
             # Extract ID and make it unique by prefixing with source file
@@ -139,15 +143,15 @@ class JSONToChromaIngester:
             metadatas.append(metadata)
         
         if not ids:
-            print("No valid documents found!")
+            logger.warning("No valid documents found!")
             return
         
-        print(f"Generating embeddings for {len(texts)} documents...")
+        logger.info("Generating embeddings for %d documents...", len(texts))
         # Generate embeddings
         embeddings = self.model.encode(texts, show_progress_bar=True)
         
         # Add to ChromaDB
-        print(f"Adding documents to ChromaDB collection...")
+        logger.info("Adding documents to ChromaDB collection...")
         self.collection.add(
             ids=ids,
             embeddings=embeddings.tolist(),
@@ -155,9 +159,9 @@ class JSONToChromaIngester:
             metadatas=metadatas
         )
         
-        print(f"\n✓ Successfully ingested {len(ids)} documents into ChromaDB!")
-        print(f"  Collection name: {self.collection_name}")
-        print(f"  ChromaDB path: {self.chroma_db_path}")
+        logger.info("Successfully ingested %d documents into ChromaDB!", len(ids))
+        logger.info("  Collection name: %s", self.collection_name)
+        logger.info("  ChromaDB path: %s", self.chroma_db_path)
     
     def query(self, query_text: str, n_results: int = 5) -> Dict[str, Any]:
         """
@@ -179,8 +183,8 @@ class JSONToChromaIngester:
     def print_stats(self) -> None:
         """Print collection statistics."""
         count = self.collection.count()
-        print(f"\nCollection Statistics:")
-        print(f"  Total documents: {count}")
+        logger.info("Collection Statistics:")
+        logger.info("  Total documents: %d", count)
 
 
 def main():
@@ -193,7 +197,7 @@ def main():
     
     # Verify json_data directory exists
     if not json_data_dir.exists():
-        print(f"ERROR: json_data directory not found at {json_data_dir}")
+        logger.error("json_data directory not found at %s", json_data_dir)
         sys.exit(1)
     
     # Create ingester
@@ -211,11 +215,11 @@ def main():
     ingester.print_stats()
     
     # Example query
-    print("\n" + "="*60)
-    print("Example Query")
-    print("="*60)
+    logger.info("=" * 60)
+    logger.info("Example Query")
+    logger.info("=" * 60)
     query_text = "Leave policy for faculty"
-    print(f"Query: {query_text}\n")
+    logger.info("Query: %s", query_text)
     
     results = ingester.query(query_text, n_results=3)
     
@@ -228,11 +232,11 @@ def main():
         ),
         1
     ):
-        print(f"\nResult {i}:")
-        print(f"  ID: {doc_id}")
-        print(f"  Distance: {distance:.4f}")
-        print(f"  Metadata: {metadata}")
-        print(f"  Text preview: {text[:200]}...")
+        logger.info("Result %d:", i)
+        logger.info("  ID: %s", doc_id)
+        logger.info("  Distance: %.4f", distance)
+        logger.info("  Metadata: %s", metadata)
+        logger.info("  Text preview: %s...", text[:200])
 
 
 if __name__ == "__main__":

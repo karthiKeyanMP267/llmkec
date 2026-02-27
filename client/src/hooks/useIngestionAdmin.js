@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AUTO_API_URL, INGESTION_ENDPOINTS } from '../config'
+import logger from '../utils/logger'
 
 const collectionId = (sourceKey, name) => (sourceKey ? `${sourceKey}::${name}` : name)
 const parseCollectionId = (value) => {
@@ -70,7 +71,9 @@ export function useIngestionAdmin(defaultBaseUrl = AUTO_API_URL, endpoints = ING
     const data = isJson ? await res.json() : null
     if (!res.ok) {
       const msg = data?.detail || data?.message || 'Request failed'
-      throw new Error(msg)
+      logger.error('API request failed (%s): %s', path, msg)
+      setError(msg)
+      return null
     }
     return data
   }
@@ -78,15 +81,18 @@ export function useIngestionAdmin(defaultBaseUrl = AUTO_API_URL, endpoints = ING
   const loadHealth = async () => {
     try {
       const data = await apiFetch('/health')
-      setHealth(data)
-    } catch (err) {
-      // If backend health isn't wired yet, degrade silently instead of surfacing error toast
-      if (String(err.message || '').includes('Not Found')) {
+      if (!data) {
+        // HTTP error (e.g. 404 when health endpoint not wired) — degrade silently
         setHealth({ status: 'degraded', chroma_connected: false, collections_count: 0, current_embedding_model: 'n/a' })
+        setError('') // clear error set by apiFetch — this is expected
         return
       }
+      setHealth(data)
+    } catch (err) {
+      // Network-level failure
+      logger.error('Health check network error:', err)
       setHealth(null)
-      setError(err.message)
+      setError(err.message || 'Health check failed')
     }
   }
 

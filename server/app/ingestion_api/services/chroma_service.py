@@ -62,7 +62,8 @@ class ChromaService:
             self.client.delete_collection(name)
             return count
         except Exception as e:
-            raise e
+            logger.error("Failed to delete collection '%s': %s", name, e)
+            return 0
 
     def reset_collection(self, name: str) -> int:
         col = self._get_collection(name)
@@ -85,14 +86,15 @@ class ChromaService:
             message = str(exc)
             if "Collection expecting embedding with dimension" in message:
                 actual_dim = len(embeddings[0]) if embeddings and embeddings[0] else None
-                raise ValueError(
-                    f"Embedding dimension mismatch for collection '{collection_name}'. "
-                    f"Collection was created with a different model/dimension. "
-                    f"Current embedding dimension: {actual_dim}. "
-                    f"Delete and recreate the collection (or switch back to the original embedding model), then re-ingest documents. "
-                    f"Original error: {message}"
-                ) from exc
-            raise
+                msg = (f"Embedding dimension mismatch for collection '{collection_name}'. "
+                       f"Collection was created with a different model/dimension. "
+                       f"Current embedding dimension: {actual_dim}. "
+                       f"Delete and recreate the collection (or switch back to the original embedding model), then re-ingest documents. "
+                       f"Original error: {message}")
+                logger.error(msg)
+                return
+            logger.error("Failed to add documents to collection '%s': %s", collection_name, exc)
+            return
 
     def delete_document(self, collection_name: str, doc_id: str):
         col = self._get_collection(collection_name)

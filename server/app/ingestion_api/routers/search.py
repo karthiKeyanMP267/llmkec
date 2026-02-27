@@ -1,9 +1,13 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
+from fastapi.responses import JSONResponse
 
 from app.ingestion_api.models.schemas import SearchRequest, SearchResponse, SearchResult
 from app.ingestion_api.dependencies import require_admin_user
+from app.ingestion_api.utils.logger import get_logger
+
+logger = get_logger("router.search")
 
 router = APIRouter(prefix="/api/v1/search", tags=["Search"], dependencies=[Depends(require_admin_user)])
 
@@ -23,12 +27,14 @@ async def search_default(
 
     col_name = collection_name or app_config.default_collection
     if not pipeline.chroma_service.collection_exists(col_name):
-        raise HTTPException(status_code=404, detail=f"Collection '{col_name}' not found")
+        logger.error("Collection '%s' not found", col_name)
+        return JSONResponse(status_code=404, content={"detail": f"Collection '{col_name}' not found"})
 
     try:
         query_embedding = pipeline.embedding_service.embed_query(request.query)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Embedding generation failed: {e}")
+        logger.error("Embedding generation failed: %s", e)
+        return JSONResponse(status_code=500, content={"detail": f"Embedding generation failed: {e}"})
 
     try:
         results = pipeline.chroma_service.query_collection(
@@ -39,7 +45,8 @@ async def search_default(
             where_document=request.where_document,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Search failed: {e}")
+        logger.error("Search failed: %s", e)
+        return JSONResponse(status_code=500, content={"detail": f"Search failed: {e}"})
 
     search_results = [
         SearchResult(
@@ -58,12 +65,14 @@ async def search_default(
 async def search_collection(collection_name: str, request: SearchRequest):
     pipeline = _get_pipeline()
     if not pipeline.chroma_service.collection_exists(collection_name):
-        raise HTTPException(status_code=404, detail=f"Collection '{collection_name}' not found")
+        logger.error("Collection '%s' not found", collection_name)
+        return JSONResponse(status_code=404, content={"detail": f"Collection '{collection_name}' not found"})
 
     try:
         query_embedding = pipeline.embedding_service.embed_query(request.query)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Embedding generation failed: {e}")
+        logger.error("Embedding generation failed: %s", e)
+        return JSONResponse(status_code=500, content={"detail": f"Embedding generation failed: {e}"})
 
     try:
         results = pipeline.chroma_service.query_collection(
@@ -74,7 +83,8 @@ async def search_collection(collection_name: str, request: SearchRequest):
             where_document=request.where_document,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Search failed: {e}")
+        logger.error("Search failed: %s", e)
+        return JSONResponse(status_code=500, content={"detail": f"Search failed: {e}"})
 
     search_results = [
         SearchResult(

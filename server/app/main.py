@@ -1,9 +1,12 @@
+import logging
 import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.ingestion_api import register_ingestion
+
+logger = logging.getLogger(__name__)
 
 
 def _allowed_origins():
@@ -37,6 +40,7 @@ def ingestion_health_alias():
         try:
             chroma_ok = True if pipeline.chroma_service.list_collections() is not None else False
         except Exception:
+            logger.debug("Chroma health check failed")
             chroma_ok = False
     return {"status": "ok" if chroma_ok else "degraded", "ingestion": True, "chroma": chroma_ok}
 

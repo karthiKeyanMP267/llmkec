@@ -1,6 +1,7 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Query, UploadFile
+from fastapi.responses import JSONResponse
 
 from app.ingestion_api.models.enums import IngestionStatus
 from app.ingestion_api.models.schemas import (
@@ -53,7 +54,8 @@ async def upload_document(
     content = await file.read()
     is_valid, error = file_manager.validate_pdf(file.filename, content)
     if not is_valid:
-        raise HTTPException(status_code=400, detail=error)
+        logger.error("Upload validation failed for '%s': %s", file.filename, error)
+        return JSONResponse(status_code=400, content={"detail": error})
 
     from app.ingestion_api.config import app_config
     col_name = collection_name or app_config.default_collection
@@ -133,7 +135,8 @@ async def get_document(doc_id: str):
     pipeline = _get_pipeline()
     doc = pipeline.metadata_store.get_document(doc_id)
     if not doc:
-        raise HTTPException(status_code=404, detail=f"Document {doc_id} not found")
+        logger.error("Document %s not found", doc_id)
+        return JSONResponse(status_code=404, content={"detail": f"Document {doc_id} not found"})
     sample_chunks = []
     if doc["status"] == IngestionStatus.COMPLETED.value:
         try:
@@ -148,7 +151,8 @@ async def get_document_status(doc_id: str):
     pipeline = _get_pipeline()
     doc = pipeline.metadata_store.get_document(doc_id)
     if not doc:
-        raise HTTPException(status_code=404, detail=f"Document {doc_id} not found")
+        logger.error("Document %s not found for status check", doc_id)
+        return JSONResponse(status_code=404, content={"detail": f"Document {doc_id} not found"})
     safe = _sanitize_meta(doc)
     return DocumentStatusResponse(
         doc_id=safe["doc_id"],
@@ -171,12 +175,14 @@ async def replace_document(
 
     doc = pipeline.metadata_store.get_document(doc_id)
     if not doc:
-        raise HTTPException(status_code=404, detail=f"Document {doc_id} not found")
+        logger.error("Document %s not found for replacement", doc_id)
+        return JSONResponse(status_code=404, content={"detail": f"Document {doc_id} not found"})
 
     content = await file.read()
     is_valid, error = file_manager.validate_pdf(file.filename, content)
     if not is_valid:
-        raise HTTPException(status_code=400, detail=error)
+        logger.error("Replacement file validation failed for '%s': %s", file.filename, error)
+        return JSONResponse(status_code=400, content={"detail": error})
 
     col_name = collection_name or doc["collection_name"]
     file_path = await file_manager.save_upload(content, file.filename, doc_id)
@@ -197,7 +203,8 @@ async def delete_document(doc_id: str):
     pipeline = _get_pipeline()
     doc = pipeline.metadata_store.get_document(doc_id)
     if not doc:
-        raise HTTPException(status_code=404, detail=f"Document {doc_id} not found")
+        logger.error("Document %s not found for deletion", doc_id)
+        return JSONResponse(status_code=404, content={"detail": f"Document {doc_id} not found"})
     result = pipeline.delete_document(doc_id)
     return DocumentDeleteResponse(
         doc_id=result["doc_id"],

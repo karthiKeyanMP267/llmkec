@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { Client as McpClient } from "@modelcontextprotocol/sdk/client";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import logger from "./logger.js";
 
 const API_PORT = Number(process.env.PORT || 8787);
 const OPENCODE_HOSTNAME = process.env.OPENCODE_HOSTNAME || "127.0.0.1";
@@ -120,8 +121,8 @@ async function loadMcpStore({ replace = false } = {}) {
       mcpToolPolicy = null;
     }
     return true;
-  } catch {
-    // ignore missing/invalid file
+  } catch (e) {
+    logger.debug("Failed to load MCP store: %s", e?.message || e);
     return false;
   }
 }
@@ -190,8 +191,8 @@ function startMcpStoreWatcher(onValidChange) {
       if (String(filename).toLowerCase() !== file) return;
       onChange();
     });
-  } catch {
-    // If watching fails (some environments), server still works; user can restart after edits.
+  } catch (e) {
+    logger.debug("File watcher setup failed: %s", e?.message || e);
   }
 }
 
@@ -209,24 +210,24 @@ async function syncMcpFromStoreIntoOpencode(opencodeClient) {
       // Apply config (best-effort). OpenCode may reject invalid configs.
       try {
         await opencodeClient.mcp.add({ body: { name, config } });
-      } catch {
-        // ignore
+      } catch (e) {
+        logger.debug("MCP add '%s' failed: %s", name, e?.message || e);
       }
 
       const enabled = config.enabled !== false;
       if (!enabled) {
         try {
           await opencodeClient.mcp.disconnect({ path: { name } });
-        } catch {
-          // ignore
+        } catch (e) {
+          logger.debug("MCP disconnect '%s' failed: %s", name, e?.message || e);
         }
         continue;
       }
 
       try {
         await opencodeClient.mcp.connect({ path: { name } });
-      } catch {
-        // ignore
+      } catch (e) {
+        logger.debug("MCP connect '%s' failed: %s", name, e?.message || e);
       }
     }
   })().finally(() => {
@@ -269,7 +270,8 @@ async function startOpencodeServer() {
 
   let port = OPENCODE_PORT ?? (await getFreePort(OPENCODE_HOSTNAME));
   if (!port) {
-    throw new Error("Failed to allocate a free port for OpenCode server");
+    logger.error("Failed to allocate a free port for OpenCode server");
+    return null;
   }
 
   // If a fixed port is configured (including the default 8010), check if it's already in use.
@@ -278,17 +280,17 @@ async function startOpencodeServer() {
     if (!available) {
       const explicitlySet = typeof OPENCODE_PORT_RAW === "string" && OPENCODE_PORT_RAW.length > 0;
       if (explicitlySet) {
-        throw new Error(
-          `OpenCode port ${port} is already in use. Free that port or set OPENCODE_PORT=auto (or another free port).`
-        );
+        logger.error("OpenCode port %d is already in use", port);
+        return null;
       }
 
       // Default port is taken; fall back to an available port automatically.
       const fallback = await getFreePort(OPENCODE_HOSTNAME);
       if (!fallback) {
-        throw new Error("Failed to allocate a free port for OpenCode server");
+        logger.error("Failed to allocate a free port for OpenCode server (fallback)");
+        return null;
       }
-      console.warn(`OpenCode port ${port} is in use; falling back to free port ${fallback}`);
+      logger.warn("OpenCode port %d is in use; falling back to free port %d", port, fallback);
       port = fallback;
     }
   }
@@ -347,9 +349,9 @@ async function startOpencodeServer() {
   });
 
   opencodeBaseUrl = url;
-  console.log(`OpenCode server started at ${opencodeBaseUrl}`);
+  logger.info("OpenCode server started at %s", opencodeBaseUrl);
   if (DEBUG_CHAT_TIMING) {
-    console.log(`[timing] opencode_start_ms=${Date.now() - t0}`);
+    logger.info("[timing] opencode_start_ms=%d", Date.now() - t0);
   }
   return url;
 }
@@ -358,13 +360,17 @@ async function getOpencode() {
   if (!opencodePromise) {
     opencodePromise = (async () => {
       const baseUrl = await startOpencodeServer();
+      if (!baseUrl) {
+        logger.error("OpenCode server failed to start — no base URL returned");
+        return null;
+      }
       const client = createOpencodeClient({ baseUrl });
 
       // Keep MCP connections alive based on server/mcp-configs.json.
       try {
         await syncMcpFromStoreIntoOpencode(client);
-      } catch {
-        // ignore
+      } catch (e) {
+        logger.debug("Initial MCP sync failed: %s", e?.message || e);
       }
 
       return {
@@ -378,7 +384,8 @@ async function getOpencode() {
       };
     })().catch((error) => {
       opencodePromise = undefined;
-      throw error;
+      logger.error("OpenCode initialization failed: %s", error?.message || error);
+      return null;
     });
   }
 
@@ -417,14 +424,20 @@ async function listMcpToolsFromConfig(name, config) {
   let transport;
   if (config?.type === "remote") {
     const url = config?.url;
-    if (typeof url !== "string" || !url.trim()) throw new Error(`MCP server '${name}' missing url`);
+    if (typeof url !== "string" || !url.trim()) {
+      logger.error("MCP server '%s' missing url", name);
+      return [];
+    }
     const headers = config?.headers && typeof config.headers === "object" ? config.headers : undefined;
     transport = new StreamableHTTPClientTransport(new URL(url), {
       requestInit: headers ? { headers } : undefined,
     });
   } else if (config?.type === "local") {
     const cmd = Array.isArray(config?.command) ? config.command : null;
-    if (!cmd || cmd.length === 0) throw new Error(`MCP server '${name}' missing command`);
+    if (!cmd || cmd.length === 0) {
+      logger.error("MCP server '%s' missing command", name);
+      return [];
+    }
     const env = config?.environment && typeof config.environment === "object" ? config.environment : undefined;
     transport = new StdioClientTransport({
       command: String(cmd[0]),
@@ -434,7 +447,8 @@ async function listMcpToolsFromConfig(name, config) {
       stderr: "pipe",
     });
   } else {
-    throw new Error(`Unsupported MCP config type for '${name}'`);
+    logger.error("Unsupported MCP config type for '%s'", name);
+    return [];
   }
 
   try {
@@ -445,8 +459,8 @@ async function listMcpToolsFromConfig(name, config) {
   } finally {
     try {
       await transport.close();
-    } catch {
-      // ignore
+    } catch (e) {
+      logger.debug("MCP transport close failed: %s", e?.message || e);
     }
   }
 }
@@ -460,7 +474,8 @@ async function fetchJson(baseUrl, pathname) {
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`OpenCode HTTP ${res.status} for ${url}${text ? `: ${text}` : ""}`);
+    logger.error("OpenCode HTTP %d for %s: %s", res.status, url, text);
+    return null;
   }
   return res.json();
 }
@@ -639,8 +654,8 @@ startMcpStoreWatcher(async () => {
   try {
     const { client } = await getOpencode();
     await syncMcpFromStoreIntoOpencode(client);
-  } catch {
-    // ignore
+  } catch (e) {
+    logger.debug("MCP store sync failed: %s", e?.message || e);
   }
 });
 
@@ -654,6 +669,7 @@ app.get("/api/health", async (_req, res) => {
     const health = await fetchJson(server.url, "/global/health");
     res.json({ ok: true, opencode: health, server: { url: server.url } });
   } catch (error) {
+    logger.error("GET /api/health failed: %s", error?.message || error);
     res.status(500).json({ ok: false, error: String(error?.message || error) });
   }
 });
@@ -664,6 +680,7 @@ app.get("/api/models", async (_req, res) => {
     const providers = unwrap(await client.config.providers());
     res.json({ ok: true, providers: redactSecrets(providers) });
   } catch (error) {
+    logger.error("GET /api/models failed: %s", error?.message || error);
     res.status(500).json({ ok: false, error: String(error?.message || error) });
   }
 });
@@ -674,6 +691,7 @@ app.get("/api/mcp/status", async (req, res) => {
     const status = unwrap(await client.mcp.status());
     res.json({ ok: true, status });
   } catch (error) {
+    logger.error("GET /api/mcp/status failed: %s", error?.message || error);
     res.status(500).json({ ok: false, error: String(error?.message || error) });
   }
 });
@@ -701,12 +719,13 @@ app.post("/api/mcp/add", async (req, res) => {
     mcpConfigStore.set(name.trim(), config);
     try {
       await saveMcpStore();
-    } catch {
-      // ignore persistence failures
+    } catch (e) {
+      logger.debug("MCP store persistence failed: %s", e?.message || e);
     }
 
     res.json({ ok: true, status });
   } catch (error) {
+    logger.error("POST /api/mcp/add failed: %s", error?.message || error);
     res.status(500).json({ ok: false, error: String(error?.message || error) });
   }
 });
@@ -722,6 +741,7 @@ app.post("/api/mcp/connect", async (req, res) => {
     const result = unwrap(await client.mcp.connect({ path: { name: name.trim() } }));
     res.json({ ok: true, result });
   } catch (error) {
+    logger.error("POST /api/mcp/connect failed: %s", error?.message || error);
     res.status(500).json({ ok: false, error: String(error?.message || error) });
   }
 });
@@ -737,6 +757,7 @@ app.post("/api/mcp/disconnect", async (req, res) => {
     const result = unwrap(await client.mcp.disconnect({ path: { name: name.trim() } }));
     res.json({ ok: true, result });
   } catch (error) {
+    logger.error("POST /api/mcp/disconnect failed: %s", error?.message || error);
     res.status(500).json({ ok: false, error: String(error?.message || error) });
   }
 });
@@ -780,6 +801,7 @@ app.get("/api/mcp/tools", async (req, res) => {
     const tools = await listMcpToolsFromConfig(name, config);
     res.json({ ok: true, name, tools: filterToolsForRole(role, tools, allowedServers) });
   } catch (error) {
+    logger.error("GET /api/mcp/tools failed: %s", error?.message || error);
     res.status(500).json({ ok: false, error: String(error?.message || error) });
   }
 });
@@ -792,6 +814,7 @@ app.get("/api/mcp/config", async (_req, res) => {
     const mcp = normalizeMcpConfigs(cfg);
     res.json({ ok: true, storePath: MCP_STORE_PATH, stored: Array.from(mcpConfigStore.keys()), opencodeMcp: redactSecrets(mcp) });
   } catch (error) {
+    logger.error("GET /api/mcp/config failed: %s", error?.message || error);
     res.status(500).json({ ok: false, error: String(error?.message || error) });
   }
 });
@@ -810,6 +833,7 @@ app.get("/api/tools", async (req, res) => {
     const tools = unwrap(await client.tool.list({ query: { provider, model } }));
     res.json({ ok: true, tools: filterToolsForRole(role, tools, allowedServers) });
   } catch (error) {
+    logger.error("GET /api/tools failed: %s", error?.message || error);
     res.status(500).json({ ok: false, error: String(error?.message || error) });
   }
 });
@@ -822,6 +846,7 @@ app.get("/api/tool-ids", async (req, res) => {
     const ids = unwrap(await client.tool.ids());
     res.json({ ok: true, ids: filterToolsForRole(role, ids, allowedServers) });
   } catch (error) {
+    logger.error("GET /api/tool-ids failed: %s", error?.message || error);
     res.status(500).json({ ok: false, error: String(error?.message || error) });
   }
 });
@@ -832,6 +857,7 @@ app.get("/api/agents", async (_req, res) => {
     const agents = unwrap(await client.app.agents());
     res.json({ ok: true, agents });
   } catch (error) {
+    logger.error("GET /api/agents failed: %s", error?.message || error);
     res.status(500).json({ ok: false, error: String(error?.message || error) });
   }
 });
@@ -856,6 +882,7 @@ app.get("/api/thread/:id/messages", async (req, res) => {
 
     res.json({ ok: true, threadId: sessionId, messages: normalized });
   } catch (error) {
+    logger.error("GET /api/thread/:id/messages failed: %s", error?.message || error);
     res.status(500).json({ ok: false, error: String(error?.message || error) });
   }
 });
@@ -952,11 +979,114 @@ If the user asks for tabular output, respond with an HTML <table> element contai
 
     if (DEBUG_CHAT_TIMING) {
       const mid = body?.model ? `${body.model.providerID}/${body.model.modelID}` : "(default)";
-      console.log(
+      logger.info(
         `[timing] chat_ms=${Date.now() - t0} session=${sessionId} mode=${normalizedMode} agent=${body.agent || "(default)"} model=${mid}`
       );
     }
   } catch (error) {
+    logger.error("POST /api/chat failed: %s", error?.message || error);
+    res.status(500).json({ ok: false, error: String(error?.message || error) });
+  }
+});
+
+app.post("/api/chat/generate-title", async (req, res) => {
+  try {
+    const { messages: chatMessages } = req.body || {};
+
+    // Accept an array of { role, text } messages representing the full conversation
+    if (!Array.isArray(chatMessages) || chatMessages.length === 0) {
+      return res.status(400).json({ ok: false, error: "Missing 'messages' array" });
+    }
+
+    // Build a conversation summary for the LLM to analyze
+    const conversationText = chatMessages
+      .filter((m) => m && typeof m.text === "string" && m.text.trim())
+      .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.text.trim().slice(0, 200)}`)
+      .join("\n");
+
+    if (!conversationText.trim()) {
+      return res.status(400).json({ ok: false, error: "No valid messages provided" });
+    }
+
+    const { client } = await getOpencode();
+    const created = unwrap(
+      await client.session.create({ body: { title: "Title Generation" } })
+    );
+    const sessionId = created?.id;
+
+    const body = {
+      system: `You are a title generator. Analyze the entire conversation between a user and an assistant. Generate a concise chat history title in exactly 3 to 5 words that summarizes the main topic or intent of the conversation.
+Rules:
+- Use simple clear words
+- Do NOT use any punctuation
+- Do NOT use quotes
+- Do NOT include filler words like "the", "a", "an", "about", "regarding"
+- Do NOT exceed 5 words
+- Output ONLY the title, nothing else
+- The title should capture the overall conversation theme, not just the first question
+
+Examples:
+Conversation about exam rules and eligibility → Exam Eligibility Rules
+Conversation about applying for leave → Leave Application Process
+Conversation about faculty promotion norms → Faculty Promotion Norms
+Conversation about travel allowance policy → Travel Allowance Policy
+Conversation about student attendance and results → Student Attendance Results`,
+      parts: [{ type: "text", text: `Summarize this conversation in 3-5 words:\n\n${conversationText}` }],
+    };
+
+    const defaultModel = await getDefaultChatModel(client);
+    if (defaultModel) body.model = defaultModel;
+
+    unwrap(
+      await client.session.promptAsync({ path: { id: sessionId }, body })
+    );
+
+    // Wait briefly for the model to respond
+    const maxWait = 10_000;
+    const pollInterval = 500;
+    let elapsed = 0;
+    let title = "";
+
+    while (elapsed < maxWait) {
+      await new Promise((r) => setTimeout(r, pollInterval));
+      elapsed += pollInterval;
+      try {
+        const msgs = unwrap(await client.session.messages({ path: { id: sessionId } }));
+        const last = Array.isArray(msgs) ? msgs[msgs.length - 1] : null;
+        if (last?.info?.role === "assistant") {
+          const raw = extractText(last.parts) || "";
+          title = raw
+            .replace(/[^a-zA-Z0-9\s]/g, "")
+            .trim()
+            .split(/\s+/)
+            .slice(0, 5)
+            .join(" ");
+          if (title) break;
+        }
+      } catch {
+        // keep polling
+      }
+    }
+
+    if (!title) {
+      // Fallback: extract keywords from all user messages
+      const allUserText = chatMessages
+        .filter((m) => m.role === "user" && typeof m.text === "string")
+        .map((m) => m.text)
+        .join(" ");
+      title = allUserText
+        .replace(/[^a-zA-Z0-9\s]/g, "")
+        .trim()
+        .split(/\s+/)
+        .filter((w) => w.length > 2 && !["the", "and", "for", "are", "was", "what", "how", "can", "you", "about", "tell", "please"].includes(w.toLowerCase()))
+        .slice(0, 4)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(" ") || "New Chat";
+    }
+
+    res.json({ ok: true, title });
+  } catch (error) {
+    logger.error("POST /api/chat/generate-title failed: %s", error?.message || error);
     res.status(500).json({ ok: false, error: String(error?.message || error) });
   }
 });
@@ -1138,8 +1268,8 @@ If the user asks for tabular output, respond with an HTML <table> element contai
           writeNdjson(res, { type: "delta", text: replyText });
           sawDelta = true;
         }
-      } catch {
-        // ignore
+      } catch (e) {
+        logger.debug("Failed to fetch final assistant message: %s", e?.message || e);
       }
     }
 
@@ -1163,8 +1293,8 @@ If the user asks for tabular output, respond with an HTML <table> element contai
             });
           }
         }
-      } catch {
-        // ignore
+      } catch (e) {
+        logger.debug("Failed to fetch tool-call info: %s", e?.message || e);
       }
     }
 
@@ -1179,32 +1309,33 @@ If the user asks for tabular output, respond with an HTML <table> element contai
 
     if (DEBUG_CHAT_TIMING) {
       const chosenModel = body?.model ? `${body.model.providerID}/${body.model.modelID}` : "(default)";
-      console.log(
+      logger.info(
         `[timing] stream_total_ms=${Date.now() - t0} first_delta_ms=${firstDeltaMs ?? "null"} saw_delta=${sawDelta} session=${sessionId} mode=${normalizedMode} agent=${body.agent || "(default)"} model=${chosenModel}`
       );
     }
   } catch (error) {
+    logger.error("POST /api/chat/stream failed: %s", error?.message || error);
     try {
       res.status(500);
       writeNdjson(res, { type: "error", error: String(error?.message || error) });
       writeNdjson(res, { type: "done" });
       res.end();
-    } catch {
-      // ignore
+    } catch (e) {
+      logger.debug("Failed to send error response in stream: %s", e?.message || e);
     }
   }
 });
 
 app.listen(API_PORT, () => {
-  console.log(`API listening on http://localhost:${API_PORT}`);
+  logger.info("API listening on http://localhost:%d", API_PORT);
   const portHint = OPENCODE_PORT === null ? "auto" : OPENCODE_PORT;
   if (OPENCODE_EAGER_START) {
-    console.log(`Starting OpenCode now (target http://${OPENCODE_HOSTNAME}:${portHint})`);
+    logger.info("Starting OpenCode now (target http://%s:%s)", OPENCODE_HOSTNAME, portHint);
     getOpencode().catch((e) => {
-      console.error("Failed to start OpenCode:", e);
-      console.error("If you want to start OpenCode only when needed, set OPENCODE_EAGER_START=0");
+      logger.error("Failed to start OpenCode:", e);
+      logger.error("If you want to start OpenCode only when needed, set OPENCODE_EAGER_START=0");
     });
   } else {
-    console.log(`OpenCode server is started lazily on first /api/* call (target http://${OPENCODE_HOSTNAME}:${portHint})`);
+    logger.info("OpenCode server is started lazily on first /api/* call (target http://%s:%s)", OPENCODE_HOSTNAME, portHint);
   }
 });

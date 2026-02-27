@@ -1,5 +1,6 @@
 
 
+import logging
 import os
 import sys
 import chromadb
@@ -15,18 +16,20 @@ from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index.readers.file import PDFReader
 from llama_index.core.storage.docstore import SimpleDocumentStore
 
+logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger(__name__)
 
 
 def fail(msg: str):
-    print(f"❌ {msg}")
+    logger.error("❌ %s", msg)
     sys.exit(1)
 
 
 def ok(msg: str):
-    print(f"✅ {msg}")
+    logger.info("✅ %s", msg)
 
 
-print("\n🔍 STEP 0: Configuration")
+logger.info("STEP 0: Configuration")
 
 ENV_PATH = Path(__file__).resolve().parents[1] / ".env.ingestion"
 load_dotenv(ENV_PATH, override=False)
@@ -55,13 +58,13 @@ Settings.embed_model = HuggingFaceEmbedding(
 ok("Local embeddings + LLM disabled")
 
 
-print("\n📁 STEP 1: Resolve paths")
+logger.info("STEP 1: Resolve paths")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(BASE_DIR)
 DATA_DIR = os.path.join(PROJECT_ROOT, "data/extracted/2024")
 
-print("📂 Data directory:", DATA_DIR)
+logger.info("Data directory: %s", DATA_DIR)
 
 if not os.path.isdir(DATA_DIR):
     fail("Data directory does not exist")
@@ -69,22 +72,22 @@ if not os.path.isdir(DATA_DIR):
 ok("Data directory exists")
 
 
-print("\n📄 STEP 2: Discover files")
+logger.info("STEP 2: Discover files")
 
 pdf_files = [
     f for f in os.listdir(DATA_DIR)
     if f.lower().endswith(".pdf")
 ]
 
-print("📄 PDF files found:", pdf_files)
+logger.info("PDF files found: %s", pdf_files)
 
 if not pdf_files:
     fail("No PDF files found in data directory")
 
-ok(f"Found {len(pdf_files)} PDF file(s)")
+ok("Found %d PDF file(s)" % len(pdf_files))
 
 
-print("\n📄 STEP 3: Load documents via PDFReader")
+logger.info("STEP 3: Load documents via PDFReader")
 
 documents: List[Document] = SimpleDirectoryReader(
     input_dir=DATA_DIR,
@@ -92,20 +95,19 @@ documents: List[Document] = SimpleDirectoryReader(
     file_extractor={".pdf": PDFReader()}
 ).load_data()
 
-print("📄 Documents loaded:", len(documents))
+logger.info("Documents loaded: %d", len(documents))
 
 if not documents:
     fail("PDFReader failed to load documents")
 
 # Optional: inspect first document
 sample = documents[0].text[:300]
-print("\n📄 Sample document text (first 300 chars):")
-print(sample)
+logger.info("Sample document text (first 300 chars):\n%s", sample)
 
 ok("Documents successfully parsed")
 
 
-print("\n🧱 STEP 4: Initialize Chroma vector store")
+logger.info("STEP 4: Initialize Chroma vector store")
 
 CHROMA_PATH = os.path.join(PROJECT_ROOT, "student_db_2024")
 COLLECTION_NAME = "rag_demo"
@@ -113,12 +115,12 @@ COLLECTION_NAME = "rag_demo"
 client = chromadb.PersistentClient(path=CHROMA_PATH)
 collection = client.get_or_create_collection(COLLECTION_NAME)
 
-print("📦 Chroma collection name:", collection.name)
+logger.info("Chroma collection name: %s", collection.name)
 
 ok("Chroma collection ready")
 
 
-print("\n🔗 STEP 5: Build ingestion pipeline")
+logger.info("STEP 5: Build ingestion pipeline")
 
 docstore = SimpleDocumentStore()
 pipeline = IngestionPipeline(
@@ -132,25 +134,25 @@ pipeline = IngestionPipeline(
 ok("IngestionPipeline created")
 
 
-print("\n🚀 STEP 6: Run ingestion")
+logger.info("STEP 6: Run ingestion")
 
 nodes =pipeline.run(documents=documents)
 
 
 ok("Pipeline execution completed")
 
-print("🧩 Nodes created:", len(nodes))
+logger.info("Nodes created: %d", len(nodes))
 
 vector_store = ChromaVectorStore(chroma_collection=collection)
 vector_store.add(nodes)
-print("\n📊 STEP 7: Verify vector count")
+logger.info("STEP 7: Verify vector count")
 
 count = collection.count()
-print("📊 Vector count:", count)
+logger.info("Vector count: %d", count)
 
 if count == 0:
     fail("No vectors stored — ingestion failed")
 
 ok("Vectors successfully stored in Chroma")
 
-print("\n🎉 INGESTION PIPELINE VERIFIED END-TO-END\n")
+logger.info("INGESTION PIPELINE VERIFIED END-TO-END")

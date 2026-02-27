@@ -1,6 +1,7 @@
 import './App.css'
 import 'katex/dist/katex.min.css'
 import { useEffect, useRef, useState } from 'react'
+import logger from './utils/logger'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
@@ -380,7 +381,7 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
     try {
       localStorage.setItem(`${storagePrefix}-conversations`, JSON.stringify(conversations))
     } catch (e) {
-      console.error('Failed to save conversations:', e)
+      logger.error('Failed to save conversations:', e)
     }
   }, [conversations, storagePrefix])
 
@@ -390,7 +391,7 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
     try {
       localStorage.setItem(`${storagePrefix}-messages-${currentConvId}`, JSON.stringify({ messages, threadId }))
     } catch (e) {
-      console.error('Failed to save messages:', e)
+      logger.error('Failed to save messages:', e)
     }
   }, [currentConvId, messages, threadId, storagePrefix])
 
@@ -414,11 +415,15 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
     setMessages(newMessages)
     setLoading(true)
 
+    let isNewConversation = false
+    let newConvId = currentConvId
     if (!currentConvId && messages.length === 0) {
       const convId = Date.now().toString()
-      const title = text.slice(0, 40) + (text.length > 40 ? '...' : '')
+      newConvId = convId
+      const tempTitle = text.slice(0, 40) + (text.length > 40 ? '...' : '')
       setCurrentConvId(convId)
-      setConversations((prev) => [{ id: convId, title, timestamp: new Date() }, ...prev])
+      setConversations((prev) => [{ id: convId, title: tempTitle, timestamp: new Date() }, ...prev])
+      isNewConversation = true
     }
 
     const controller = new AbortController()
@@ -437,7 +442,10 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
 
       if (!res.ok || !res.body) {
         const t = await res.text().catch(() => '')
-        throw new Error(t || `HTTP ${res.status}`)
+        const errMsg = t || `HTTP ${res.status}`
+        logger.error('Chat stream request failed:', errMsg)
+        setError(errMsg)
+        return
       }
 
       const reader = res.body.getReader()
@@ -484,7 +492,10 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
           setError(msg)
         }
         if (evt?.type === 'error') {
-          throw new Error(evt.error || 'Chat failed')
+          const errMsg = evt.error || 'Chat failed'
+          logger.error('Chat stream error event:', errMsg)
+          setError(errMsg)
+          break
         }
         if (evt?.type === 'done') {
           break
@@ -517,6 +528,36 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
     } finally {
       setLoading(false)
       setAbortController(null)
+
+      // After first response completes, generate a summarized title from the full conversation
+      if (isNewConversation && newConvId) {
+        setMessages((currentMsgs) => {
+          // Extract all meaningful messages for title generation
+          const chatMessages = currentMsgs
+            .filter((m) => m && m.text && m.text.trim() && m.text !== '(no text response)')
+            .map((m) => ({ role: m.role, text: m.text }))
+
+          if (chatMessages.length > 0) {
+            fetch('/api/chat/generate-title', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ messages: chatMessages }),
+            })
+              .then((r) => r.json())
+              .then((data) => {
+                if (data?.ok && data.title) {
+                  setConversations((prev) =>
+                    prev.map((c) => (c.id === newConvId ? { ...c, title: data.title } : c))
+                  )
+                }
+              })
+              .catch(() => {
+                // Keep the temporary title on failure
+              })
+          }
+          return currentMsgs // return unchanged
+        })
+      }
     }
   }
 
@@ -549,7 +590,7 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
         setThreadId(null)
       }
     } catch (e) {
-      console.error('Failed to load conversation:', e)
+      logger.error('Failed to load conversation:', e)
       setMessages([])
       setThreadId(null)
     }
@@ -561,7 +602,7 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
     try {
       localStorage.removeItem(`${storagePrefix}-messages-${convId}`)
     } catch (e) {
-      console.error('Failed to delete conversation messages:', e)
+      logger.error('Failed to delete conversation messages:', e)
     }
     if (currentConvId === convId) {
       newChat()

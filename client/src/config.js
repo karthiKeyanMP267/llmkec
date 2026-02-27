@@ -1,4 +1,4 @@
-export const AUTH_URL = import.meta.env.VITE_AUTH_URL || 'http://localhost:4005'
+export const AUTH_URL = import.meta.env.VITE_AUTH_URL || 'http://localhost:9000'
 export const ADMIN_API_URL = import.meta.env.VITE_ADMIN_API_URL || 'http://localhost:9000'
 export const AUTO_API_URL = import.meta.env.VITE_AUTO_INGEST_URL || 'http://localhost:9000/ingestion'
 

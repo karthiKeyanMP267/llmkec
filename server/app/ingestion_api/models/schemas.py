@@ -4,6 +4,9 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field, field_validator
 
 from app.ingestion_api.models.enums import IngestionStatus
+from app.ingestion_api.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class DocumentMetadata(BaseModel):
@@ -71,7 +74,8 @@ class CollectionCreateRequest(BaseModel):
     @classmethod
     def validate_name(cls, v: str) -> str:
         if not v.replace("_", "").replace("-", "").isalnum():
-            raise ValueError("Collection name must be alphanumeric/underscore/hyphen")
+            logger.error("Invalid collection name: %s", v)
+            raise ValueError("Collection name must be alphanumeric/underscore/hyphen")  # raise required by Pydantic
         return v
 
 

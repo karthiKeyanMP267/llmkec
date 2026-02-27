@@ -9,12 +9,16 @@ Optional environment overrides:
 
 from __future__ import annotations
 
+import logging
 import os
 import signal
 import subprocess
 import sys
 import time
 from pathlib import Path
+
+logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger(__name__)
 
 ROOT = Path(__file__).resolve().parent
 
@@ -44,7 +48,7 @@ def start_instance(name: str, env_file: Path, extra_env: dict[str, str] | None =
         env=env,
     )
     port = env.get("API_PORT", "8000")
-    print(f"[started] {name} on port {port} (pid={process.pid})")
+    logger.info("[started] %s on port %s (pid=%s)", name, port, process.pid)
     return process
 
 
@@ -54,7 +58,8 @@ def stop_process(process: subprocess.Popen):
     try:
         process.terminate()
         process.wait(timeout=8)
-    except Exception:
+    except Exception as e:
+        logger.debug("Graceful termination failed, killing process: %s", e)
         process.kill()
 
 
@@ -77,16 +82,16 @@ def main():
         for name, env_file, extra_env in instances:
             processes.append(start_instance(name, env_file, extra_env))
 
-        print("All ingestion instances started. Press Ctrl+C to stop all.")
+        logger.info("All ingestion instances started. Press Ctrl+C to stop all.")
         while True:
             if any(p.poll() is not None for p in processes):
                 for idx, proc in enumerate(processes):
                     if proc.poll() is not None:
-                        print(f"[exited] {instances[idx][0]} exited with code {proc.returncode}")
+                        logger.warning("[exited] %s exited with code %s", instances[idx][0], proc.returncode)
                 break
             time.sleep(1)
     except KeyboardInterrupt:
-        print("\nStopping ingestion instances...")
+        logger.info("Stopping ingestion instances...")
     finally:
         for proc in processes:
             stop_process(proc)

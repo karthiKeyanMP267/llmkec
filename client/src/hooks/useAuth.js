@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AUTH_URL } from '../config'
+import logger from '../utils/logger'
 
 const STORAGE_KEY = 'auth-session'
 
@@ -62,7 +63,7 @@ export function useAuth() {
       return { ok: true, session: nextSession }
     } catch (err) {
       setError('Unable to reach auth server')
-      console.error(err)
+      logger.error('Auth login failed:', err)
       return { ok: false }
     } finally {
       setLoading(false)

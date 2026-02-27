@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
 
 from app.ingestion_api.config import app_config
 from app.ingestion_api.models.schemas import (
@@ -8,6 +9,9 @@ from app.ingestion_api.models.schemas import (
     EmbeddingModelUpdateRequest,
 )
 from app.ingestion_api.dependencies import require_admin_user
+from app.ingestion_api.utils.logger import get_logger
+
+logger = get_logger("router.config")
 
 router = APIRouter(prefix="/api/v1/config", tags=["Configuration"], dependencies=[Depends(require_admin_user)])
 
@@ -35,9 +39,11 @@ async def update_embedding_model(request: EmbeddingModelUpdateRequest):
         model_info = pipeline.embedding_service.switch_model(request.model_key)
         return EmbeddingModelInfo(**model_info)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error("Failed to switch embedding model: %s", e)
+        return JSONResponse(status_code=400, content={"detail": str(e)})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to switch model: {e}")
+        logger.error("Unexpected error switching model: %s", e)
+        return JSONResponse(status_code=500, content={"detail": f"Failed to switch model: {e}"})
 
 
 @router.put("/chunking")
@@ -48,7 +54,8 @@ async def update_chunking(request: ChunkingConfigUpdateRequest):
             app_config.chunk_size = request.chunk_size
         if request.chunk_overlap is not None:
             if request.chunk_overlap >= (request.chunk_size or app_config.chunk_size):
-                raise ValueError("Chunk overlap must be less than chunk size")
+                logger.error("Chunk overlap must be less than chunk size")
+                return JSONResponse(status_code=400, content={"detail": "Chunk overlap must be less than chunk size"})
             app_config.chunk_overlap = request.chunk_overlap
         pipeline.chunking_service.update_params(app_config.chunk_size, app_config.chunk_overlap)
         return {
@@ -57,4 +64,5 @@ async def update_chunking(request: ChunkingConfigUpdateRequest):
             "message": "Chunking parameters updated.",
         }
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error("Failed to update chunking config: %s", e)
+        return JSONResponse(status_code=400, content={"detail": str(e)})
