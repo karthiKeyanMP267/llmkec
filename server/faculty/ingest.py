@@ -27,9 +27,9 @@ class JSONToChromaIngester:
     def __init__(
         self, 
         json_data_dir: str,
-        model_name: str = "all-MiniLM-L6-v2",
-        collection_name: str = "policy_documents",
-        chroma_db_path: str = "./chroma_data"
+        model_name: str = "BAAI/bge-base-en-v1.5",
+        collection_name: str = "faculty_2025_rules",
+        chroma_db_path: str = "./faculty_db"
     ):
         """
         Initialize the ingester.
@@ -165,7 +165,7 @@ class JSONToChromaIngester:
     
     def query(self, query_text: str, n_results: int = 5) -> Dict[str, Any]:
         """
-        Query the ChromaDB collection.
+        Query the ChromaDB collection using the same embedding model.
         
         Args:
             query_text: Text to query
@@ -174,8 +174,10 @@ class JSONToChromaIngester:
         Returns:
             Query results
         """
+        # Use the same model to embed the query — avoids dimension mismatch
+        query_embedding = self.model.encode([query_text]).tolist()
         results = self.collection.query(
-            query_texts=[query_text],
+            query_embeddings=query_embedding,
             n_results=n_results
         )
         return results
@@ -190,21 +192,21 @@ class JSONToChromaIngester:
 def main():
     """Main function to run the ingester."""
     
-    # Paths
+    # Paths — aligned with faculty_server.py (reads from ./faculty_db)
     script_dir = Path(__file__).parent
     json_data_dir = script_dir / "json_data"
-    chroma_db_path = script_dir / "chroma_data"
+    chroma_db_path = script_dir / "faculty_db"
     
     # Verify json_data directory exists
     if not json_data_dir.exists():
         logger.error("json_data directory not found at %s", json_data_dir)
         sys.exit(1)
     
-    # Create ingester
+    # Create ingester — model MUST match faculty_server.py & .env.ingestion
     ingester = JSONToChromaIngester(
         json_data_dir=str(json_data_dir),
-        model_name="all-MiniLM-L6-v2",  # Fast and effective model
-        collection_name="policy_documents",
+        model_name="BAAI/bge-base-en-v1.5",  # 768-dim, matches server config
+        collection_name="faculty_2025_rules",
         chroma_db_path=str(chroma_db_path)
     )
     

@@ -55,17 +55,24 @@ TOOLS POLICY:
 
 ROLE-BASED BEHAVIOR:
 - If the user role is STUDENT:
+  - You may access student-related tools and datasets only.
   - Do NOT access or reference faculty-only, staff-only, policy, HR, or administrative data.
   - If asked about restricted content, reply exactly:
     "Access denied for faculty content."
 
 - If the user role is FACULTY:
-  - You may access faculty-approved tools and datasets.
-  - You may answer both academic and administrative questions.
+  - You may access both student and faculty tools and datasets.
+  - You may answer academic, administrative, and policy-related questions.
 
 - If the user role is ADMIN:
   - You may access all institution-approved student and faculty datasets/tools.
   - You may answer academic, administrative, and policy-related questions.
+
+DATA MODIFICATION RESTRICTION:
+- You MUST NOT add, update, delete, or modify any data in any database or collection.
+- You are a READ-ONLY assistant. All data ingestion is handled separately by administrators.
+- If asked to add, update, or delete data, reply:
+  "Data modifications are restricted to administrators through the admin panel."
 
 OUTPUT RULES:
 - Be concise and structured.
@@ -552,7 +559,8 @@ function extractToolServer(tool) {
 }
 
 function filterToolsForRole(role, tools, allowedServers) {
-  if (role === "FACULTY" || role === "ADMIN") return tools;
+  // ADMIN gets unrestricted access to all tools
+  if (role === "ADMIN") return tools;
   if (!Array.isArray(tools)) return tools;
 
   const allowList = new Set((allowedServers || roleDefaultMcpServers(role)).map((s) => String(s || "").trim()).filter(Boolean));
@@ -585,7 +593,7 @@ function roleDefaultMcpServers(role) {
     return ["student_server_2022", "student_server_2024", "faculty_server"];
   }
   if (role === "FACULTY") {
-    return ["faculty_server"];
+    return ["student_server_2022", "student_server_2024", "faculty_server"];
   }
   return ["student_server_2022", "student_server_2024"];
 }
@@ -927,7 +935,8 @@ You must never say that you searched the web, checked online sources, or fetched
 
 You are answering for a STUDENT.
 Do NOT access or reference faculty, staff, HR, policy, or administrative content.
-If asked, reply: "Access denied for faculty content."`;
+If asked, reply: "Access denied for faculty content."
+Do NOT add, update, or delete any data. You are read-only.`;
     }
 
     const allowedServers = allowedMcpServersForRole(role, req);
@@ -936,7 +945,8 @@ If asked, reply: "Access denied for faculty content."`;
       body.system += `
 
 For this ${roleLabel} session, you may use these MCP servers: ${allowedServers.join(",")}.
-Consult every available server that is relevant, aggregate their answers, and surface a single concise reply.`;
+Consult every available server that is relevant, aggregate their answers, and surface a single concise reply.
+You MUST NOT attempt to add, update, delete, or modify any data. You are strictly read-only.`;
     }
 
     if (model && typeof model === "object" && model.providerID && model.modelID) {
@@ -1136,7 +1146,8 @@ You must never say that you searched the web, checked online sources, or fetched
 
 You are answering for a STUDENT.
 Do NOT access or reference faculty, staff, HR, policy, or administrative content.
-If asked, reply: "Access denied for faculty content."`;
+If asked, reply: "Access denied for faculty content."
+Do NOT add, update, or delete any data. You are read-only.`;
     }
 
     const allowedServers = allowedMcpServersForRole(role, req);
@@ -1145,7 +1156,8 @@ If asked, reply: "Access denied for faculty content."`;
       body.system += `
 
 For this ${roleLabel} session, you may use these MCP servers: ${allowedServers.join(",")}.
-Consult every available server that is relevant, aggregate their answers, and surface a single concise reply.`;
+Consult every available server that is relevant, aggregate their answers, and surface a single concise reply.
+You MUST NOT attempt to add, update, delete, or modify any data. You are strictly read-only.`;
     }
 
     if (model && typeof model === "object" && model.providerID && model.modelID) {

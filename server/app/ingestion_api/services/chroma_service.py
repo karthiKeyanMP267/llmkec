@@ -68,7 +68,10 @@ class ChromaService:
     def reset_collection(self, name: str) -> int:
         col = self._get_collection(name)
         count = col.count()
-        col.delete(where={})
+        if count > 0:
+            all_ids = col.get(include=[])["ids"]
+            if all_ids:
+                col.delete(ids=all_ids)
         return count
 
     def rename_collection(self, old_name: str, new_name: str, new_metadata: Optional[Dict[str, Any]] = None):

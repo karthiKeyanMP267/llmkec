@@ -2,7 +2,7 @@ import chromadb
 import logging
 import os
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from dotenv import load_dotenv
 from llama_index.core import Settings, VectorStoreIndex
@@ -14,12 +14,23 @@ logging.basicConfig(
     level=logging.INFO,
     format="[%(asctime)s] %(levelname)s %(name)s: %(message)s",
 )
-logger = logging.getLogger(__name__)
-
+logger = logging.getLogger("student_2024_retriever")
 
 CHROMA_PATH = str(Path(__file__).resolve().parents[1] / "student_db_2024")
 SIMILARITY_TOP_K = 10
 MMR_THRESHOLD = 0.5
+
+# Singleton ChromaDB client — avoid creating a new one on every query
+_chroma_client: Optional[chromadb.PersistentClient] = None
+
+
+def _get_chroma_client() -> chromadb.PersistentClient:
+    """Return a singleton PersistentClient."""
+    global _chroma_client
+    if _chroma_client is None:
+        _chroma_client = chromadb.PersistentClient(path=CHROMA_PATH)
+        logger.info("ChromaDB client initialized at %s", CHROMA_PATH)
+    return _chroma_client
 
 
 def _resolve_embedding_model() -> str:
@@ -66,7 +77,7 @@ def _resolve_collection_names(client: chromadb.PersistentClient) -> List[str]:
         )
         return []
 
-    default_candidates = [name for name in ("student_data_2024", "student_data_2022", "rag_demo") if name in available_set]
+    default_candidates = [name for name in ("student_2024_ingestion", "student_data_2024", "student_data_2022", "rag_demo") if name in available_set]
     if default_candidates:
         return default_candidates
 
@@ -80,7 +91,7 @@ Settings.llm = None  # plug in a local LLM here if available
 
 
 def load_index(collection_name: str) -> VectorStoreIndex:
-    client = chromadb.PersistentClient(path=CHROMA_PATH)
+    client = _get_chroma_client()
     collection = client.get_collection(collection_name)
     vector_store = ChromaVectorStore(chroma_collection=collection)
     return VectorStoreIndex.from_vector_store(vector_store)
@@ -103,12 +114,15 @@ def build_query_engine(index: VectorStoreIndex):
 
 
 async def query_rag(question: str) -> str:
-    try:
-        client = chromadb.PersistentClient(path=CHROMA_PATH)
-        collection_names = _resolve_collection_names(client)
+    client = _get_chroma_client()
+    collection_names = _resolve_collection_names(client)
 
-        outputs: List[str] = []
-        for collection_name in collection_names:
+    if not collection_names:
+        return "No relevant content found in configured student collections."
+
+    outputs: List[str] = []
+    for collection_name in collection_names:
+        try:
             index = load_index(collection_name)
             query_engine = build_query_engine(index)
             response = await query_engine.aquery(question)
@@ -116,11 +130,11 @@ async def query_rag(question: str) -> str:
             if not text:
                 continue
             outputs.append(f"[{collection_name}]\n{text}")
+        except Exception as exc:
+            logger.exception("Query failed on collection '%s'", collection_name)
+            continue
 
-        if not outputs:
-            return "No relevant content found in configured student collections."
+    if not outputs:
+        return "No relevant content found in configured student collections."
 
-        return "\n\n".join(outputs)
-    except Exception as e:
-        logger.error("query_rag failed: %s", e)
-        return f"Error: Failed to query student regulations: {str(e)}"
+    return "\n\n".join(outputs)
