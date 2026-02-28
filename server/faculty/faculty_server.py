@@ -1,435 +1,164 @@
 """
-Chroma MCP Server - Official chroma-mcp compatible server
-Based on: https://github.com/chroma-core/chroma-mcp
+Faculty MCP Server - Query-only ChromaDB server for faculty data.
 
-Simplified for persistent client usage with your local faculty_db folder.
+Exposes read-only tools via FastMCP (SSE transport).
+All write/ingestion operations are restricted to the Admin Ingestion API.
 
 Usage:
-    python mcp_chroma_server.py --client-type persistent --data-dir ./faculty_db
-
-For Claude Desktop, add to config:
-{
-  "mcpServers": {
-    "chroma": {
-      "command": "python",
-      "args": [
-        "C:/Users/vikym/Documents/GitHub/llmAgent/chromaDB_MCP/mcp_chroma_server.py",
-        "--client-type", "persistent",
-        "--data-dir", "C:/Users/vikym/Documents/GitHub/llmAgent/chromaDB_MCP/faculty_db"
-      ]
-    }
-  }
-}
+    python faculty_server.py [--data-dir ./faculty_db] [--mcp-port 3001]
 """
 
-from typing import Dict, List
-import chromadb
-import logging
 import os
 import sys
 import argparse
+import logging
 from pathlib import Path
+from typing import Dict, List, Optional
+
+import chromadb
 from dotenv import load_dotenv
-
-logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s %(name)s: %(message)s")
-logger = logging.getLogger(__name__)
 from fastmcp import FastMCP
-from chromadb.config import Settings
-from chromadb.api.collection_configuration import CreateCollectionConfiguration
-from chromadb.api import EmbeddingFunction
-from chromadb.utils.embedding_functions import (
-    DefaultEmbeddingFunction,
-    CohereEmbeddingFunction,
-    OpenAIEmbeddingFunction,
-    JinaEmbeddingFunction,
-    VoyageAIEmbeddingFunction,
-    RoboflowEmbeddingFunction,
+from sentence_transformers import SentenceTransformer
+
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
+    stream=sys.stderr,
 )
+logger = logging.getLogger("faculty_server")
 
-# Initialize FastMCP server
-mcp = FastMCP("chroma")
-
-# Global ChromaDB client
-_chroma_client = None
-
-# Known embedding functions
-mcp_known_embedding_functions: Dict[str, EmbeddingFunction] = {
-    "default": DefaultEmbeddingFunction,
-    "cohere": CohereEmbeddingFunction,
-    "openai": OpenAIEmbeddingFunction,
-    "jina": JinaEmbeddingFunction,
-    "voyageai": VoyageAIEmbeddingFunction,
-    "roboflow": RoboflowEmbeddingFunction,
+# ---------------------------------------------------------------------------
+# Embedding model configuration
+# ---------------------------------------------------------------------------
+_ALIAS_MAP = {
+    "bge-large-en-v1.5": "BAAI/bge-large-en-v1.5",
+    "e5-large-v2": "intfloat/e5-large-v2",
+    "gte-large": "thenlper/gte-large",
+    "bge-base-en-v1.5": "BAAI/bge-base-en-v1.5",
+    "e5-base-v2": "intfloat/e5-base-v2",
+    "all-MiniLM-L6-v2": "sentence-transformers/all-MiniLM-L6-v2",
 }
 
+_embedding_model: Optional[SentenceTransformer] = None
 
-def create_parser():
-    """Create and return the argument parser."""
-    parser = argparse.ArgumentParser(description='FastMCP server for Chroma DB')
-    parser.add_argument('--client-type', 
-                       choices=['http', 'cloud', 'persistent', 'ephemeral'],
-                       default=os.getenv('CHROMA_CLIENT_TYPE', 'persistent'),
-                       help='Type of Chroma client to use (default: persistent)')
-    parser.add_argument('--data-dir',
-                       default=os.getenv('CHROMA_DATA_DIR', './faculty_db'),
-                       help='Directory for persistent client data')
-    parser.add_argument('--host', 
-                       help='Chroma host (required for http client)', 
-                       default=os.getenv('CHROMA_HOST'))
-    parser.add_argument('--port', 
-                       help='Chroma port (optional for http client)', 
-                       default=os.getenv('CHROMA_PORT'))
-    parser.add_argument('--custom-auth-credentials',
-                       help='Custom auth credentials (optional for http client)', 
-                       default=os.getenv('CHROMA_CUSTOM_AUTH_CREDENTIALS'))
-    parser.add_argument('--tenant', 
-                       help='Chroma tenant (optional for http client)', 
-                       default=os.getenv('CHROMA_TENANT'))
-    parser.add_argument('--database', 
-                       help='Chroma database (required if tenant is provided)', 
-                       default=os.getenv('CHROMA_DATABASE'))
-    parser.add_argument('--api-key', 
-                       help='Chroma API key (required if tenant is provided)', 
-                       default=os.getenv('CHROMA_API_KEY'))
-    parser.add_argument('--ssl', 
-                       help='Use SSL (optional for http client)', 
-                       type=lambda x: x.lower() in ['true', 'yes', '1', 't', 'y'],
-                       default=os.getenv('CHROMA_SSL', 'true').lower() in ['true', 'yes', '1', 't', 'y'])
-    parser.add_argument('--dotenv-path', 
-                       help='Path to .env file', 
-                       default=os.getenv('CHROMA_DOTENV_PATH', '.chroma_env'))
-    
-    # MCP Server transport arguments
-    parser.add_argument('--mcp-host', 
-                       help='Host for MCP HTTP server', 
-                       default=os.getenv('MCP_HOST', 'localhost'))
-    parser.add_argument('--mcp-port', 
-                       help='Port for MCP HTTP server', 
-                       type=int,
-                       default=int(os.getenv('MCP_PORT', '3001')))
-    parser.add_argument('--transport', 
-                       choices=['stdio', 'http', 'sse'],
-                       default=os.getenv('MCP_TRANSPORT', 'sse'),
-                       help='Transport type for MCP server (default: sse)')
+
+def _resolve_model_name() -> str:
+    env_path = Path(__file__).resolve().parent / ".env.ingestion"
+    if env_path.exists():
+        load_dotenv(env_path, override=False)
+    raw = os.getenv("EMBEDDING_MODEL", "bge-base-en-v1.5")
+    return _ALIAS_MAP.get(raw, raw)
+
+
+def get_embedding_model() -> SentenceTransformer:
+    global _embedding_model
+    if _embedding_model is None:
+        model_name = _resolve_model_name()
+        logger.info("Loading embedding model: %s", model_name)
+        _embedding_model = SentenceTransformer(model_name)
+        dim = _embedding_model.get_sentence_embedding_dimension()
+        logger.info("Embedding model loaded (dim=%d)", dim)
+    return _embedding_model
+
+
+def embed_texts(texts: List[str]) -> List[List[float]]:
+    model = get_embedding_model()
+    vectors = model.encode(texts, show_progress_bar=False)
+    return vectors.tolist()
+
+
+# ---------------------------------------------------------------------------
+# FastMCP server
+# ---------------------------------------------------------------------------
+mcp = FastMCP("faculty-query")
+
+# ---------------------------------------------------------------------------
+# ChromaDB client (global singleton)
+# ---------------------------------------------------------------------------
+_chroma_client: Optional[chromadb.ClientAPI] = None
+
+
+def create_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Faculty Query MCP Server")
+    parser.add_argument("--data-dir", default=os.getenv("CHROMA_DATA_DIR", "./faculty_db"),
+                        help="Path to ChromaDB persistent storage (default: ./faculty_db)")
+    parser.add_argument("--mcp-host", default=os.getenv("MCP_HOST", "localhost"),
+                        help="Host for the MCP SSE server (default: localhost)")
+    parser.add_argument("--mcp-port", type=int, default=int(os.getenv("MCP_PORT", "3001")),
+                        help="Port for the MCP SSE server (default: 3001)")
+    parser.add_argument("--transport", choices=["stdio", "sse"], default=os.getenv("MCP_TRANSPORT", "sse"),
+                        help="Transport type (default: sse)")
     return parser
 
 
-def get_chroma_client(args=None):
-    """Get or create the global Chroma client instance."""
+def get_chroma_client(args=None) -> chromadb.ClientAPI:
     global _chroma_client
     if _chroma_client is None:
         if args is None:
-            # Create parser and parse args if not provided
-            parser = create_parser()
-            args = parser.parse_args()
-        
-        # Load environment variables from .env file if it exists
-        load_dotenv(dotenv_path=args.dotenv_path)
-        
-        if args.client_type == 'http':
-            if not args.host:
-                logger.error("Host must be provided via --host flag or CHROMA_HOST environment variable when using HTTP client")
-                return None
-            
-            settings = Settings()
-            if args.custom_auth_credentials:
-                settings = Settings(
-                    chroma_client_auth_provider="chromadb.auth.basic_authn.BasicAuthClientProvider",
-                    chroma_client_auth_credentials=args.custom_auth_credentials
-                )
-            
-            _chroma_client = chromadb.HttpClient(
-                host=args.host,
-                port=args.port if args.port else None,
-                ssl=args.ssl,
-                settings=settings
-            )
-            
-        elif args.client_type == 'cloud':
-            if not args.tenant:
-                logger.error("Tenant must be provided via --tenant flag or CHROMA_TENANT environment variable when using cloud client")
-                return None
-            if not args.database:
-                logger.error("Database must be provided via --database flag or CHROMA_DATABASE environment variable when using cloud client")
-                return None
-            if not args.api_key:
-                logger.error("API key must be provided via --api-key flag or CHROMA_API_KEY environment variable when using cloud client")
-                return None
-            
-            _chroma_client = chromadb.HttpClient(
-                host="api.trychroma.com",
-                ssl=True,
-                tenant=args.tenant,
-                database=args.database,
-                headers={'x-chroma-token': args.api_key}
-            )
-                
-        elif args.client_type == 'persistent':
-            if not args.data_dir:
-                logger.error("Data directory must be provided via --data-dir flag when using persistent client")
-                return None
-            
-            # Ensure directory exists
-            Path(args.data_dir).mkdir(parents=True, exist_ok=True)
-            logger.info("Initializing ChromaDB with persistent storage at: %s", args.data_dir)
-            _chroma_client = chromadb.PersistentClient(path=args.data_dir)
-            
-        else:  # ephemeral
-            logger.info("Initializing ChromaDB with ephemeral storage")
-            _chroma_client = chromadb.EphemeralClient()
-            
+            args = create_parser().parse_args()
+        data_dir = args.data_dir
+        Path(data_dir).mkdir(parents=True, exist_ok=True)
+        logger.info("Initializing ChromaDB at: %s", data_dir)
+        _chroma_client = chromadb.PersistentClient(path=data_dir)
+        logger.info("ChromaDB client ready")
     return _chroma_client
 
 
-##### Collection Management Tools #####
+# ---------------------------------------------------------------------------
+# QUERY-ONLY TOOLS  (no add / update / delete / create / fork / reset)
+# ---------------------------------------------------------------------------
 
 @mcp.tool()
-async def chroma_list_collections(
-    limit: int | None = None,
-    offset: int | None = None
-) -> List[str]:
-    """List all collection names in the Chroma database with pagination support.
-    
-    Args:
-        limit: Optional maximum number of collections to return
-        offset: Optional number of collections to skip before returning results
-    
-    Returns:
-        List of collection names or ["__NO_COLLECTIONS_FOUND__"] if database is empty
-    """
+async def chroma_list_collections(limit: int = 100, offset: int = 0) -> List[Dict]:
+    """List all collections in the faculty ChromaDB."""
     client = get_chroma_client()
     try:
-        colls = client.list_collections(limit=limit, offset=offset)
-        if not colls:
-            return ["__NO_COLLECTIONS_FOUND__"]
-        return [coll.name for coll in colls]
-    except Exception as e:
-        logger.error("Failed to list collections: %s", e)
-        return [f"__ERROR__: {str(e)}"]
-
-
-@mcp.tool()
-async def chroma_create_collection(
-    collection_name: str,
-    embedding_function_name: str = "default",
-    metadata: Dict | None = None,
-) -> str:
-    """Create a new Chroma collection with configurable embedding functions.
-    
-    Args:
-        collection_name: Name of the collection to create
-        embedding_function_name: Name of the embedding function to use. Options: 'default', 'cohere', 'openai', 'jina', 'voyageai', 'roboflow'
-        metadata: Optional metadata dict to add to the collection
-    
-    Returns:
-        Success message
-    """
-    client = get_chroma_client()
-    
-    embedding_function = mcp_known_embedding_functions.get(embedding_function_name)
-    if not embedding_function:
-        msg = f"Unknown embedding function: {embedding_function_name}. Valid options: {list(mcp_known_embedding_functions.keys())}"
-        logger.error(msg)
-        return f"Error: {msg}"
-    
-    configuration = CreateCollectionConfiguration(
-        embedding_function=embedding_function()
-    )
-    
-    try:
-        client.create_collection(
-            name=collection_name,
-            configuration=configuration,
-            metadata=metadata
-        )
-        return f"Successfully created collection '{collection_name}' with {embedding_function_name} embedding function"
-    except Exception as e:
-        logger.error("Failed to create collection '%s': %s", collection_name, e)
-        return f"Error: Failed to create collection '{collection_name}': {str(e)}"
+        collections = client.list_collections(limit=limit, offset=offset)
+        result = []
+        for col in collections:
+            try:
+                count = col.count()
+            except Exception:
+                count = -1
+            result.append({"name": col.name, "count": count})
+        return result if result else [{"name": "__NO_COLLECTIONS__", "count": 0}]
+    except Exception as exc:
+        logger.exception("Failed to list collections")
+        raise RuntimeError(f"Failed to list collections: {exc}") from exc
 
 
 @mcp.tool()
 async def chroma_get_collection_info(collection_name: str) -> Dict:
-    """Get information about a Chroma collection.
-    
-    Args:
-        collection_name: Name of the collection to get info about
-    
-    Returns:
-        Dictionary with collection info including count and sample documents
-    """
+    """Get metadata and sample documents from a collection."""
     client = get_chroma_client()
     try:
         collection = client.get_collection(collection_name)
         count = collection.count()
-        peek_results = collection.peek(limit=3)
-        
+        sample = collection.peek(limit=3)
         return {
             "name": collection_name,
             "count": count,
-            "sample_documents": peek_results
+            "metadata": collection.metadata or {},
+            "sample_documents": sample,
         }
-    except Exception as e:
-        logger.error("Failed to get collection info for '%s': %s", collection_name, e)
-        return {"error": f"Failed to get collection info for '{collection_name}': {str(e)}"}
+    except Exception as exc:
+        logger.exception("Failed to get collection info for '%s'", collection_name)
+        raise RuntimeError(f"Collection '{collection_name}' not found or inaccessible: {exc}") from exc
 
 
 @mcp.tool()
 async def chroma_get_collection_count(collection_name: str) -> int:
-    """Get the number of documents in a Chroma collection.
-    
-    Args:
-        collection_name: Name of the collection to count
-    
-    Returns:
-        Number of documents in the collection
-    """
+    """Return the number of documents in a collection."""
     client = get_chroma_client()
     try:
         collection = client.get_collection(collection_name)
         return collection.count()
-    except Exception as e:
-        logger.error("Failed to get collection count for '%s': %s", collection_name, e)
-        return -1
-
-
-@mcp.tool()
-async def chroma_modify_collection(
-    collection_name: str,
-    new_name: str | None = None,
-    new_metadata: Dict | None = None,
-) -> str:
-    """Modify a Chroma collection's name or metadata.
-    
-    Args:
-        collection_name: Name of the collection to modify
-        new_name: Optional new name for the collection
-        new_metadata: Optional new metadata for the collection
-    
-    Returns:
-        Success message
-    """
-    client = get_chroma_client()
-    try:
-        collection = client.get_collection(collection_name)
-        collection.modify(name=new_name, metadata=new_metadata)
-        
-        modified_aspects = []
-        if new_name:
-            modified_aspects.append("name")
-        if new_metadata:
-            modified_aspects.append("metadata")
-        
-        return f"Successfully modified collection {collection_name}: updated {' and '.join(modified_aspects)}"
-    except Exception as e:
-        logger.error("Failed to modify collection '%s': %s", collection_name, e)
-        return f"Error: Failed to modify collection '{collection_name}': {str(e)}"
-
-
-@mcp.tool()
-async def chroma_fork_collection(
-    collection_name: str,
-    new_collection_name: str,
-) -> str:
-    """Fork a Chroma collection.
-    
-    Args:
-        collection_name: Name of the collection to fork
-        new_collection_name: Name of the new collection to create
-    
-    Returns:
-        Success message
-    """
-    client = get_chroma_client()
-    try:
-        collection = client.get_collection(collection_name)
-        collection.fork(new_collection_name)
-        return f"Successfully forked collection {collection_name} to {new_collection_name}"
-    except Exception as e:
-        logger.error("Failed to fork collection '%s': %s", collection_name, e)
-        return f"Error: Failed to fork collection '{collection_name}': {str(e)}"
-
-
-@mcp.tool()
-async def chroma_delete_collection(collection_name: str) -> str:
-    """Delete a Chroma collection.
-    
-    Args:
-        collection_name: Name of the collection to delete
-    
-    Returns:
-        Success message
-    """
-    client = get_chroma_client()
-    try:
-        client.delete_collection(collection_name)
-        return f"Successfully deleted collection '{collection_name}'"
-    except Exception as e:
-        logger.error("Failed to delete collection '%s': %s", collection_name, e)
-        return f"Error: Failed to delete collection '{collection_name}': {str(e)}"
-
-
-##### Document Operations #####
-
-@mcp.tool()
-async def chroma_add_documents(
-    collection_name: str,
-    documents: List[str],
-    ids: List[str],
-    metadatas: List[Dict] | None = None
-) -> str:
-    """Add documents to a Chroma collection.
-    
-    Args:
-        collection_name: Name of the collection to add documents to
-        documents: List of text documents to add
-        ids: List of IDs for the documents (required)
-        metadatas: Optional list of metadata dictionaries for each document
-    
-    Returns:
-        Success message
-    """
-    if not documents:
-        logger.error("The 'documents' list cannot be empty.")
-        return "Error: The 'documents' list cannot be empty."
-    
-    if not ids:
-        logger.error("The 'ids' list is required and cannot be empty.")
-        return "Error: The 'ids' list is required and cannot be empty."
-    
-    if any(not id.strip() for id in ids):
-        logger.error("IDs cannot be empty strings.")
-        return "Error: IDs cannot be empty strings."
-    
-    if len(ids) != len(documents):
-        msg = f"Number of ids ({len(ids)}) must match number of documents ({len(documents)})."
-        logger.error(msg)
-        return f"Error: {msg}"
-    
-    client = get_chroma_client()
-    try:
-        collection = client.get_or_create_collection(collection_name)
-        
-        # Check for duplicate IDs
-        existing_ids = collection.get(include=[])["ids"]
-        duplicate_ids = [id for id in ids if id in existing_ids]
-        
-        if duplicate_ids:
-            msg = (f"The following IDs already exist in collection '{collection_name}': {duplicate_ids}. "
-                   f"Use 'chroma_update_documents' to update existing documents.")
-            logger.error(msg)
-            return f"Error: {msg}"
-        
-        result = collection.add(
-            documents=documents,
-            metadatas=metadatas,
-            ids=ids
-        )
-        
-        return f"Successfully added {len(documents)} documents to collection {collection_name}"
-    except Exception as e:
-        logger.error("Failed to add documents to collection '%s': %s", collection_name, e)
-        return f"Error: Failed to add documents to collection '{collection_name}': {str(e)}"
+    except Exception as exc:
+        logger.exception("Failed to count collection '%s'", collection_name)
+        raise RuntimeError(f"Collection '{collection_name}' not found: {exc}") from exc
 
 
 @mcp.tool()
@@ -437,66 +166,50 @@ async def chroma_query_documents(
     collection_name: str,
     query_texts: List[str],
     n_results: int = 5,
-    where: Dict | None = None,
-    where_document: Dict | None = None,
-    include: List[str] = ["documents", "metadatas", "distances"]
+    where: Optional[Dict] = None,
+    where_document: Optional[Dict] = None,
+    include: List[str] = ["documents", "metadatas", "distances"],
 ) -> Dict:
-    """Query documents from a Chroma collection with advanced filtering.
-    
-    Args:
-        collection_name: Name of the collection to query
-        query_texts: List of query texts to search for
-        n_results: Number of results to return per query
-        where: Optional metadata filters using Chroma's query operators
-        where_document: Optional document content filters
-        include: List of what to include in response. By default, this will include documents, metadatas, and distances.
-    
-    Returns:
-        Dictionary with query results including documents, metadatas, and distances
+    """Query a collection using semantic search with the correct embedding model.
+
+    This tool embeds the query with the SAME model used during ingestion
+    (bge-base-en-v1.5, 768-dim) to avoid dimension mismatches.
     """
     if not query_texts:
-        logger.error("The 'query_texts' list cannot be empty.")
-        return {"error": "The 'query_texts' list cannot be empty."}
-    
+        raise ValueError("query_texts must not be empty")
+
     client = get_chroma_client()
     try:
         collection = client.get_collection(collection_name)
+    except Exception as exc:
+        raise RuntimeError(f"Collection '{collection_name}' not found: {exc}") from exc
+
+    query_embeddings = embed_texts(query_texts)
+
+    try:
         return collection.query(
-            query_texts=query_texts,
+            query_embeddings=query_embeddings,
             n_results=n_results,
             where=where,
             where_document=where_document,
-            include=include
+            include=include,
         )
-    except Exception as e:
-        logger.error("Failed to query documents from '%s': %s", collection_name, e)
-        return {"error": f"Failed to query documents from '{collection_name}': {str(e)}"}
+    except Exception as exc:
+        logger.exception("Query failed on collection '%s'", collection_name)
+        raise RuntimeError(f"Failed to query '{collection_name}': {exc}") from exc
 
 
 @mcp.tool()
 async def chroma_get_documents(
     collection_name: str,
-    ids: List[str] | None = None,
-    where: Dict | None = None,
-    where_document: Dict | None = None,
+    ids: Optional[List[str]] = None,
+    where: Optional[Dict] = None,
+    where_document: Optional[Dict] = None,
     include: List[str] = ["documents", "metadatas"],
-    limit: int | None = None,
-    offset: int | None = None
+    limit: int = 20,
+    offset: int = 0,
 ) -> Dict:
-    """Get documents from a Chroma collection with optional filtering.
-    
-    Args:
-        collection_name: Name of the collection to get documents from
-        ids: Optional list of document IDs to retrieve
-        where: Optional metadata filters using Chroma's query operators
-        where_document: Optional document content filters
-        include: List of what to include in response. By default, this will include documents, and metadatas.
-        limit: Optional maximum number of documents to return
-        offset: Optional number of documents to skip before returning results
-    
-    Returns:
-        Dictionary containing the matching documents, their IDs, and requested includes
-    """
+    """Retrieve documents from a collection by ID or filter (no embedding needed)."""
     client = get_chroma_client()
     try:
         collection = client.get_collection(collection_name)
@@ -506,503 +219,124 @@ async def chroma_get_documents(
             where_document=where_document,
             include=include,
             limit=limit,
-            offset=offset
+            offset=offset,
         )
-    except Exception as e:
-        logger.error("Failed to get documents from '%s': %s", collection_name, e)
-        return {"error": f"Failed to get documents from '{collection_name}': {str(e)}"}
+    except Exception as exc:
+        logger.exception("Failed to get documents from '%s'", collection_name)
+        raise RuntimeError(f"Failed to get documents from '{collection_name}': {exc}") from exc
 
 
 @mcp.tool()
-async def chroma_update_documents(
-    collection_name: str,
-    ids: List[str],
-    embeddings: List[List[float]] | None = None,
-    metadatas: List[Dict] | None = None,
-    documents: List[str] | None = None
-) -> str:
-    """Update documents in a Chroma collection.
-
-    Args:
-        collection_name: Name of the collection to update documents in
-        ids: List of document IDs to update (required)
-        embeddings: Optional list of new embeddings for the documents.
-                    Must match length of ids if provided.
-        metadatas: Optional list of new metadata dictionaries for the documents.
-                   Must match length of ids if provided.
-        documents: Optional list of new text documents.
-                   Must match length of ids if provided.
-
-    Returns:
-        A confirmation message indicating the number of documents updated.
-    """
-    if not ids:
-        logger.error("The 'ids' list cannot be empty.")
-        return "Error: The 'ids' list cannot be empty."
-
-    if embeddings is None and metadatas is None and documents is None:
-        msg = "At least one of 'embeddings', 'metadatas', or 'documents' must be provided for update."
-        logger.error(msg)
-        return f"Error: {msg}"
-
-    # Ensure provided lists match the length of ids if they are not None
-    if embeddings is not None and len(embeddings) != len(ids):
-        logger.error("Length of 'embeddings' list must match length of 'ids' list.")
-        return "Error: Length of 'embeddings' list must match length of 'ids' list."
-    if metadatas is not None and len(metadatas) != len(ids):
-        logger.error("Length of 'metadatas' list must match length of 'ids' list.")
-        return "Error: Length of 'metadatas' list must match length of 'ids' list."
-    if documents is not None and len(documents) != len(ids):
-        logger.error("Length of 'documents' list must match length of 'ids' list.")
-        return "Error: Length of 'documents' list must match length of 'ids' list."
-
-    client = get_chroma_client()
-    try:
-        collection = client.get_collection(collection_name)
-    except Exception as e:
-        logger.error("Failed to get collection '%s': %s", collection_name, e)
-        return f"Error: Failed to get collection '{collection_name}': {str(e)}"
-    update_args = {
-        "ids": ids,
-        "embeddings": embeddings,
-        "metadatas": metadatas,
-        "documents": documents,
-    }
-    kwargs = {k: v for k, v in update_args.items() if v is not None}
-
-    try:
-        collection.update(**kwargs)
-        return (
-            f"Successfully processed update request for {len(ids)} documents in "
-            f"collection '{collection_name}'. Note: Non-existent IDs are ignored by ChromaDB."
-        )
-    except Exception as e:
-        logger.error("Failed to update documents in collection '%s': %s", collection_name, e)
-        return f"Error: Failed to update documents in collection '{collection_name}': {str(e)}"
-
-
-@mcp.tool()
-async def chroma_delete_documents(
-    collection_name: str,
-    ids: List[str]
-) -> str:
-    """Delete documents from a Chroma collection.
-
-    Args:
-        collection_name: Name of the collection to delete documents from
-        ids: List of document IDs to delete
-
-    Returns:
-        A confirmation message indicating the number of documents deleted.
-    """
-    if not ids:
-        logger.error("The 'ids' list cannot be empty.")
-        return "Error: The 'ids' list cannot be empty."
-
-    client = get_chroma_client()
-    try:
-        collection = client.get_collection(collection_name)
-    except Exception as e:
-        logger.error("Failed to get collection '%s': %s", collection_name, e)
-        return f"Error: Failed to get collection '{collection_name}': {str(e)}"
-
-    try:
-        collection.delete(ids=ids)
-        return (
-            f"Successfully deleted {len(ids)} documents from "
-            f"collection '{collection_name}'. Note: Non-existent IDs are ignored by ChromaDB."
-        )
-    except Exception as e:
-        logger.error("Failed to delete documents from collection '%s': %s", collection_name, e)
-        return f"Error: Failed to delete documents from collection '{collection_name}': {str(e)}"
-
-
-##### Helper Tools #####
-
-@mcp.tool()
-async def chroma_peek_collection(
-    collection_name: str,
-    limit: int = 5
-) -> Dict:
-    """Peek at documents in a Chroma collection.
-    
-    Args:
-        collection_name: Name of the collection to peek into
-        limit: Number of documents to peek at (default: 5)
-    
-    Returns:
-        Dictionary with sample documents
-    """
+async def chroma_peek_collection(collection_name: str, limit: int = 5) -> Dict:
+    """Peek at a few documents in a collection (quick preview)."""
     client = get_chroma_client()
     try:
         collection = client.get_collection(collection_name)
         return collection.peek(limit=limit)
-    except Exception as e:
-        logger.error("Failed to peek collection '%s': %s", collection_name, e)
-        return f"Error: Failed to peek collection '{collection_name}': {str(e)}"
+    except Exception as exc:
+        logger.exception("Failed to peek collection '%s'", collection_name)
+        raise RuntimeError(f"Failed to peek '{collection_name}': {exc}") from exc
 
-
-##### Advanced Operations for Scaling #####
 
 @mcp.tool()
-async def chroma_get_or_create_collection(
+async def chroma_search_by_text(
     collection_name: str,
-    embedding_function_name: str = "default",
-    metadata: Dict | None = None,
-) -> str:
-    """Get an existing collection or create it if it doesn't exist (idempotent operation).
-    
-    Args:
-        collection_name: Name of the collection
-        embedding_function_name: Name of the embedding function to use if creating
-        metadata: Optional metadata dict for the collection
-    
-    Returns:
-        Status message indicating if collection was created or already exists
+    query_text: str,
+    n_results: int = 10,
+    where: Optional[Dict] = None,
+    max_distance: Optional[float] = None,
+) -> Dict:
+    """Search a collection by text with optional distance filtering.
+
+    Uses the correct embedding model to avoid dimension mismatches.
     """
+    if not query_text or not query_text.strip():
+        raise ValueError("query_text must not be empty")
+
     client = get_chroma_client()
-    
     try:
         collection = client.get_collection(collection_name)
-        return f"Collection '{collection_name}' already exists with {collection.count()} documents"
-    except Exception as e:
-        # Collection doesn't exist, create it
-        logger.info("Collection '%s' not found, creating new: %s", collection_name, e)
-        embedding_function = mcp_known_embedding_functions.get(embedding_function_name)
-        if not embedding_function:
-            logger.error("Unknown embedding function: %s", embedding_function_name)
-            return f"Error: Unknown embedding function: {embedding_function_name}"
-        
-        configuration = CreateCollectionConfiguration(
-            embedding_function=embedding_function()
-        )
-        
-        client.create_collection(
-            name=collection_name,
-            configuration=configuration,
-            metadata=metadata
-        )
-        return f"Created new collection '{collection_name}' with {embedding_function_name} embedding function"
+    except Exception as exc:
+        raise RuntimeError(f"Collection '{collection_name}' not found: {exc}") from exc
 
+    query_embedding = embed_texts([query_text])
 
-@mcp.tool()
-async def chroma_upsert_documents(
-    collection_name: str,
-    documents: List[str],
-    ids: List[str],
-    metadatas: List[Dict] | None = None
-) -> str:
-    """Upsert documents (add if new, update if exists) - useful for incremental updates.
-    
-    Args:
-        collection_name: Name of the collection
-        documents: List of text documents
-        ids: List of document IDs
-        metadatas: Optional list of metadata dictionaries
-    
-    Returns:
-        Success message
-    """
-    if not documents or not ids:
-        logger.error("Both 'documents' and 'ids' are required")
-        return "Error: Both 'documents' and 'ids' are required"
-    
-    if len(ids) != len(documents):
-        msg = f"Number of ids ({len(ids)}) must match documents ({len(documents)})"
-        logger.error(msg)
-        return f"Error: {msg}"
-    
-    client = get_chroma_client()
     try:
-        collection = client.get_or_create_collection(collection_name)
-        
-        collection.upsert(
-            documents=documents,
-            ids=ids,
-            metadatas=metadatas
+        results = collection.query(
+            query_embeddings=query_embedding,
+            n_results=n_results,
+            where=where,
+            include=["documents", "metadatas", "distances"],
         )
-        
-        return f"Successfully upserted {len(documents)} documents in collection '{collection_name}'"
-    except Exception as e:
-        logger.error("Failed to upsert documents: %s", e)
-        return f"Error: Failed to upsert documents: {str(e)}"
+    except Exception as exc:
+        logger.exception("Search failed on '%s'", collection_name)
+        raise RuntimeError(f"Search failed on '{collection_name}': {exc}") from exc
+
+    if max_distance is not None and results.get("distances"):
+        filtered = {"ids": [[]], "documents": [[]], "metadatas": [[]], "distances": [[]]}
+        for i, dist in enumerate(results["distances"][0]):
+            if dist <= max_distance:
+                filtered["ids"][0].append(results["ids"][0][i])
+                filtered["documents"][0].append(results["documents"][0][i])
+                filtered["metadatas"][0].append(results["metadatas"][0][i])
+                filtered["distances"][0].append(dist)
+        return filtered
+
+    return results
 
 
 @mcp.tool()
 async def chroma_count_documents_with_filter(
     collection_name: str,
-    where: Dict | None = None,
-    where_document: Dict | None = None
+    where: Optional[Dict] = None,
+    where_document: Optional[Dict] = None,
 ) -> int:
-    """Count documents matching specific filters (useful for large collections).
-    
-    Args:
-        collection_name: Name of the collection
-        where: Optional metadata filters
-        where_document: Optional document content filters
-    
-    Returns:
-        Number of documents matching the filters
-    """
+    """Count documents matching specific metadata or content filters."""
     client = get_chroma_client()
     try:
         collection = client.get_collection(collection_name)
-        
-        # Get filtered documents and count them
         results = collection.get(
             where=where,
             where_document=where_document,
-            include=[]  # Don't include any data, just get IDs
+            include=[],
         )
-        
         return len(results["ids"])
-    except Exception as e:
-        logger.error("Failed to count filtered documents: %s", e)
-        return f"Error: Failed to count filtered documents: {str(e)}"
+    except Exception as exc:
+        logger.exception("Failed to count filtered documents in '%s'", collection_name)
+        raise RuntimeError(f"Count failed on '{collection_name}': {exc}") from exc
 
 
-@mcp.tool()
-async def chroma_delete_documents_by_filter(
-    collection_name: str,
-    where: Dict | None = None,
-    where_document: Dict | None = None
-) -> str:
-    """Delete all documents matching filters (useful for bulk cleanup).
-    
-    Args:
-        collection_name: Name of the collection
-        where: Optional metadata filters
-        where_document: Optional document content filters
-    
-    Returns:
-        Success message with count of deleted documents
-    """
-    if not where and not where_document:
-        logger.error("At least one filter (where or where_document) must be provided")
-        return "Error: At least one filter (where or where_document) must be provided"
-    
-    client = get_chroma_client()
-    try:
-        collection = client.get_collection(collection_name)
-        
-        collection.delete(
-            where=where,
-            where_document=where_document
-        )
-        
-        return f"Successfully deleted documents from collection '{collection_name}' matching the filters"
-    except Exception as e:
-        logger.error("Failed to delete filtered documents: %s", e)
-        return f"Error: Failed to delete filtered documents: {str(e)}"
-
-
-@mcp.tool()
-async def chroma_batch_add_documents(
-    collection_name: str,
-    documents: List[str],
-    ids: List[str],
-    metadatas: List[Dict] | None = None,
-    batch_size: int = 100
-) -> str:
-    """Add documents in batches for better performance with large datasets.
-    
-    Args:
-        collection_name: Name of the collection
-        documents: List of text documents
-        ids: List of document IDs
-        metadatas: Optional list of metadata dictionaries
-        batch_size: Number of documents per batch (default: 100)
-    
-    Returns:
-        Success message with batch statistics
-    """
-    if not documents or not ids:
-        logger.error("Both 'documents' and 'ids' are required")
-        return "Error: Both 'documents' and 'ids' are required"
-    
-    if len(ids) != len(documents):
-        logger.error("Number of ids must match number of documents")
-        return "Error: Number of ids must match number of documents"
-    
-    client = get_chroma_client()
-    try:
-        collection = client.get_or_create_collection(collection_name)
-        
-        total_docs = len(documents)
-        batches = (total_docs + batch_size - 1) // batch_size
-        
-        for i in range(0, total_docs, batch_size):
-            end_idx = min(i + batch_size, total_docs)
-            batch_docs = documents[i:end_idx]
-            batch_ids = ids[i:end_idx]
-            batch_metas = metadatas[i:end_idx] if metadatas else None
-            
-            collection.add(
-                documents=batch_docs,
-                ids=batch_ids,
-                metadatas=batch_metas
-            )
-        
-        return f"Successfully added {total_docs} documents in {batches} batches to collection '{collection_name}'"
-    except Exception as e:
-        logger.error("Failed to batch add documents: %s", e)
-        return f"Error: Failed to batch add documents: {str(e)}"
-
-
-@mcp.tool()
-async def chroma_reset_collection(
-    collection_name: str
-) -> str:
-    """Delete all documents from a collection without deleting the collection itself.
-    
-    Args:
-        collection_name: Name of the collection to reset
-    
-    Returns:
-        Success message with count of deleted documents
-    """
-    client = get_chroma_client()
-    try:
-        collection = client.get_collection(collection_name)
-        
-        # Get current count
-        count_before = collection.count()
-        
-        # Get all IDs
-        all_docs = collection.get(include=[])
-        all_ids = all_docs["ids"]
-        
-        if all_ids:
-            collection.delete(ids=all_ids)
-        
-        return f"Successfully reset collection '{collection_name}' - removed {count_before} documents"
-    except Exception as e:
-        logger.error("Failed to reset collection '%s': %s", collection_name, e)
-        return f"Error: Failed to reset collection '{collection_name}': {str(e)}"
-
-
-@mcp.tool()
-async def chroma_get_collection_metadata(
-    collection_name: str
-) -> Dict:
-    """Get detailed metadata about a collection (useful for monitoring).
-    
-    Args:
-        collection_name: Name of the collection
-    
-    Returns:
-        Dictionary with collection metadata
-    """
-    client = get_chroma_client()
-    try:
-        collection = client.get_collection(collection_name)
-        
-        return {
-            "name": collection_name,
-            "count": collection.count(),
-            "metadata": collection.metadata if hasattr(collection, 'metadata') else {}
-        }
-    except Exception as e:
-        logger.error("Failed to get collection metadata: %s", e)
-        return f"Error: Failed to get collection metadata: {str(e)}"
-
-
-@mcp.tool()
-async def chroma_search_by_text_with_limit(
-    collection_name: str,
-    query_text: str,
-    n_results: int = 10,
-    where: Dict | None = None,
-    min_distance: float | None = None,
-    max_distance: float | None = None
-) -> Dict:
-    """Advanced search with distance filtering (useful for quality control).
-    
-    Args:
-        collection_name: Name of the collection to query
-        query_text: Text to search for
-        n_results: Number of results to return
-        where: Optional metadata filters
-        min_distance: Minimum distance threshold (exclude too similar results)
-        max_distance: Maximum distance threshold (exclude dissimilar results)
-    
-    Returns:
-        Filtered query results
-    """
-    client = get_chroma_client()
-    try:
-        collection = client.get_collection(collection_name)
-        
-        results = collection.query(
-            query_texts=[query_text],
-            n_results=n_results,
-            where=where,
-            include=["documents", "metadatas", "distances"]
-        )
-        
-        # Apply distance filtering if specified
-        if min_distance is not None or max_distance is not None:
-            filtered_results = {
-                "ids": [[]],
-                "documents": [[]],
-                "metadatas": [[]],
-                "distances": [[]]
-            }
-            
-            for i, distance in enumerate(results["distances"][0]):
-                if (min_distance is None or distance >= min_distance) and \
-                   (max_distance is None or distance <= max_distance):
-                    filtered_results["ids"][0].append(results["ids"][0][i])
-                    filtered_results["documents"][0].append(results["documents"][0][i])
-                    filtered_results["metadatas"][0].append(results["metadatas"][0][i])
-                    filtered_results["distances"][0].append(distance)
-            
-            return filtered_results
-        
-        return results
-    except Exception as e:
-        logger.error("Failed to search with distance filtering: %s", e)
-        return f"Error: Failed to search with distance filtering: {str(e)}"
-
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
 
 def main():
-    """Entry point for the Chroma MCP server."""
     parser = create_parser()
     args = parser.parse_args()
-    
-    if args.dotenv_path:
-        load_dotenv(dotenv_path=args.dotenv_path)
-        # re-parse args to read the updated environment variables
-        parser = create_parser()
-        args = parser.parse_args()
-    
-    # Validate required arguments based on client type
-    if args.client_type == 'http':
-        if not args.host:
-            parser.error("Host must be provided via --host flag or CHROMA_HOST environment variable when using HTTP client")
-    
-    elif args.client_type == 'cloud':
-        if not args.tenant:
-            parser.error("Tenant must be provided via --tenant flag or CHROMA_TENANT environment variable when using cloud client")
-        if not args.database:
-            parser.error("Database must be provided via --database flag or CHROMA_DATABASE environment variable when using cloud client")
-        if not args.api_key:
-            parser.error("API key must be provided via --api-key flag or CHROMA_API_KEY environment variable when using cloud client")
-    
-    # Initialize client with parsed args
+
+    env_path = Path(__file__).resolve().parent / ".env.ingestion"
+    if env_path.exists():
+        load_dotenv(env_path, override=False)
+
     try:
         get_chroma_client(args)
-        logger.info("Successfully initialized Chroma client")
-    except Exception as e:
-        logger.error("Failed to initialize Chroma client: %s", str(e))
+        logger.info("ChromaDB client initialised")
+    except Exception as exc:
+        logger.critical("Cannot start - ChromaDB init failed: %s", exc)
         sys.exit(1)
-    
-    # Run the MCP server 
-    logger.info("Starting FastMCP server")
-    logger.info("Transport: %s", args.transport)
-    logger.info("Running on %s:%s", args.mcp_host, args.mcp_port)
-    
-    # Run with transport, host, and port
+
+    try:
+        get_embedding_model()
+        logger.info("Embedding model ready")
+    except Exception as exc:
+        logger.critical("Cannot start - Embedding model load failed: %s", exc)
+        sys.exit(1)
+
+    logger.info(
+        "Starting Faculty MCP server (transport=%s, host=%s, port=%d)",
+        args.transport, args.mcp_host, args.mcp_port,
+    )
+
     mcp.run(transport=args.transport, host=args.mcp_host, port=args.mcp_port)
 
 

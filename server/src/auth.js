@@ -33,7 +33,7 @@ const adminEmail = /^admin@kongu\.edu$/i;
 
 const serverAccess = {
   STUDENT: ["student_server_2022", "student_server_2024"],
-  FACULTY: ["faculty_server"],
+  FACULTY: ["student_server_2022", "student_server_2024", "faculty_server"],
   ADMIN: ["student_server_2022", "student_server_2024", "faculty_server"],
 };
 
