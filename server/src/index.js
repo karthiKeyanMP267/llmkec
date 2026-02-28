@@ -1,6 +1,8 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import { Pool } from "pg";
+import jwt from "jsonwebtoken";
 import { createOpencodeClient } from "@opencode-ai/sdk";
 import { spawn } from "node:child_process";
 import net from "node:net";
@@ -25,6 +27,8 @@ const OPENCODE_STARTUP_TIMEOUT_MS = Number(process.env.OPENCODE_STARTUP_TIMEOUT_
 const OPENCODE_EAGER_START = 1;
 const CHAT_DEFAULT_PROVIDER_ID = process.env.CHAT_DEFAULT_PROVIDER_ID || "opencode";
 const CHAT_DEFAULT_MODEL_ID = process.env.CHAT_DEFAULT_MODEL_ID || "kimi-k2.5-free";
+const AUTH_JWT_SECRET = process.env.AUTH_JWT_SECRET || "dev-secret-change-me";
+const AUTH_JWT_ISS = process.env.AUTH_JWT_ISS || "kec-auth";
 
 const KEC_SYSTEM_PROMPT = `
 You are **KEC Assistant**, the official AI assistant of Kongu Engineering College.
@@ -92,6 +96,23 @@ let mcpWatcherStarted = false;
 let mcpSyncInFlight = null;
 let mcpToolPolicy = null;
 let resolvedDefaultChatModel = null;
+
+const pgOptions = {
+  connectionString: process.env.DATABASE_URL,
+  host: process.env.PGHOST,
+  port: process.env.PGPORT ? Number(process.env.PGPORT) : undefined,
+  database: process.env.PGDATABASE,
+  user: process.env.PGUSER,
+  password: process.env.PGPASSWORD,
+  ssl: process.env.PGSSL === "1" ? { rejectUnauthorized: false } : undefined,
+};
+
+const hasDatabaseConfig = Boolean(
+  pgOptions.connectionString || (pgOptions.host && pgOptions.database && pgOptions.user)
+);
+
+const historyPool = hasDatabaseConfig ? new Pool(pgOptions) : null;
+let historySchemaReady = false;
 
 function debounce(fn, delayMs) {
   let t = null;
@@ -520,10 +541,67 @@ function redactSecrets(value) {
 }
 
 function deriveRole(req) {
+  if (req.authUser?.role === "ADMIN") return "ADMIN";
+  if (req.authUser?.role === "FACULTY") return "FACULTY";
+  if (req.authUser?.role === "STUDENT") return "STUDENT";
   const headerRole = (req.headers["x-role"] || req.headers["x-user-role"] || "").toString().toUpperCase();
   if (headerRole === "ADMIN") return "ADMIN";
   if (headerRole === "FACULTY") return "FACULTY";
   return "STUDENT"; // default safest role
+}
+
+function deriveAuthUser(req) {
+  const auth = (req.headers.authorization || "").toString();
+  if (!auth.toLowerCase().startsWith("bearer ")) return null;
+  const token = auth.slice(7).trim();
+  if (!token) return null;
+
+  try {
+    const payload = jwt.verify(token, AUTH_JWT_SECRET, { issuer: AUTH_JWT_ISS });
+    const userId = Number(payload?.sub);
+    const email = String(payload?.email || "").trim().toLowerCase();
+    const role = String(payload?.role || "").trim().toUpperCase();
+    const allowedServers = Array.isArray(payload?.allowedServers)
+      ? payload.allowedServers.map((name) => String(name || "").trim()).filter(Boolean)
+      : [];
+
+    if (!Number.isFinite(userId) || !email) return null;
+
+    return { userId, email, role, allowedServers };
+  } catch {
+    return null;
+  }
+}
+
+async function ensureHistorySchema() {
+  if (!historyPool || historySchemaReady) return historySchemaReady;
+
+  await historyPool.query(`
+    CREATE TABLE IF NOT EXISTS chat_conversations (
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      conversation_id VARCHAR(100) NOT NULL,
+      title VARCHAR(255) NOT NULL DEFAULT 'New Chat',
+      thread_id VARCHAR(255),
+      messages JSONB NOT NULL DEFAULT '[]'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (user_id, conversation_id)
+    );
+  `);
+
+  await historyPool.query(`
+    CREATE INDEX IF NOT EXISTS idx_chat_conversations_user_updated
+      ON chat_conversations(user_id, updated_at DESC);
+  `);
+
+  historySchemaReady = true;
+  return true;
+}
+
+function requireAuthUser(req, res) {
+  if (req.authUser?.userId) return true;
+  res.status(401).json({ ok: false, error: "Unauthorized" });
+  return false;
 }
 
 function parseServerNameFromId(id) {
@@ -593,6 +671,10 @@ function roleDefaultMcpServers(role) {
 function allowedMcpServersForRole(role, req) {
   const enabledServers = new Set(listEnabledMcpServers());
   const roleDefaults = roleDefaultMcpServers(role).filter((name) => enabledServers.has(name));
+  const tokenAllowed = Array.isArray(req.authUser?.allowedServers) ? req.authUser.allowedServers : null;
+  if (tokenAllowed && tokenAllowed.length) {
+    return roleDefaults.filter((name) => tokenAllowed.includes(name));
+  }
   const headerAllowed = parseAllowedServersHeader(req);
   if (!headerAllowed) return roleDefaults;
   return roleDefaults.filter((name) => headerAllowed.includes(name));
@@ -647,6 +729,10 @@ async function getDefaultChatModel(client) {
 const app = express();
 app.use(express.json({ limit: "1mb" }));
 app.use(cors({ origin: true }));
+app.use((req, _res, next) => {
+  req.authUser = deriveAuthUser(req);
+  next();
+});
 
 await loadMcpStore({ replace: true });
 startMcpStoreWatcher(async () => {
@@ -883,6 +969,124 @@ app.get("/api/thread/:id/messages", async (req, res) => {
     res.json({ ok: true, threadId: sessionId, messages: normalized });
   } catch (error) {
     logger.error("GET /api/thread/:id/messages failed: %s", error?.message || error);
+    res.status(500).json({ ok: false, error: String(error?.message || error) });
+  }
+});
+
+app.get("/api/chat/history", async (req, res) => {
+  try {
+    if (!requireAuthUser(req, res)) return;
+    if (!historyPool) {
+      res.status(503).json({ ok: false, error: "Chat history storage is not configured" });
+      return;
+    }
+
+    await ensureHistorySchema();
+
+    const result = await historyPool.query(
+      `
+      SELECT conversation_id, title, thread_id, messages, created_at, updated_at
+      FROM chat_conversations
+      WHERE user_id = $1
+      ORDER BY updated_at DESC
+      `,
+      [req.authUser.userId]
+    );
+
+    const conversations = result.rows.map((row) => ({
+      id: row.conversation_id,
+      title: row.title,
+      threadId: row.thread_id,
+      messages: Array.isArray(row.messages) ? row.messages : [],
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+
+    res.json({ ok: true, conversations });
+  } catch (error) {
+    logger.error("GET /api/chat/history failed: %s", error?.message || error);
+    res.status(500).json({ ok: false, error: String(error?.message || error) });
+  }
+});
+
+app.post("/api/chat/history", async (req, res) => {
+  try {
+    if (!requireAuthUser(req, res)) return;
+    if (!historyPool) {
+      res.status(503).json({ ok: false, error: "Chat history storage is not configured" });
+      return;
+    }
+
+    const { id, title, threadId, messages } = req.body || {};
+    const conversationId = String(id || "").trim();
+    if (!conversationId) {
+      res.status(400).json({ ok: false, error: "Missing conversation id" });
+      return;
+    }
+    if (!Array.isArray(messages)) {
+      res.status(400).json({ ok: false, error: "Messages must be an array" });
+      return;
+    }
+
+    await ensureHistorySchema();
+
+    const normalizedTitle = String(title || "").trim() || "New Chat";
+    const normalizedThreadId = threadId ? String(threadId) : null;
+
+    await historyPool.query(
+      `
+      INSERT INTO chat_conversations (user_id, conversation_id, title, thread_id, messages)
+      VALUES ($1, $2, $3, $4, $5::jsonb)
+      ON CONFLICT (user_id, conversation_id)
+      DO UPDATE SET
+        title = EXCLUDED.title,
+        thread_id = EXCLUDED.thread_id,
+        messages = EXCLUDED.messages,
+        updated_at = NOW()
+      `,
+      [
+        req.authUser.userId,
+        conversationId,
+        normalizedTitle,
+        normalizedThreadId,
+        JSON.stringify(messages),
+      ]
+    );
+
+    res.json({ ok: true });
+  } catch (error) {
+    logger.error("POST /api/chat/history failed: %s", error?.message || error);
+    res.status(500).json({ ok: false, error: String(error?.message || error) });
+  }
+});
+
+app.delete("/api/chat/history/:id", async (req, res) => {
+  try {
+    if (!requireAuthUser(req, res)) return;
+    if (!historyPool) {
+      res.status(503).json({ ok: false, error: "Chat history storage is not configured" });
+      return;
+    }
+
+    await ensureHistorySchema();
+
+    const conversationId = String(req.params.id || "").trim();
+    if (!conversationId) {
+      res.status(400).json({ ok: false, error: "Missing conversation id" });
+      return;
+    }
+
+    await historyPool.query(
+      `
+      DELETE FROM chat_conversations
+      WHERE user_id = $1 AND conversation_id = $2
+      `,
+      [req.authUser.userId, conversationId]
+    );
+
+    res.json({ ok: true });
+  } catch (error) {
+    logger.error("DELETE /api/chat/history/:id failed: %s", error?.message || error);
     res.status(500).json({ ok: false, error: String(error?.message || error) });
   }
 });

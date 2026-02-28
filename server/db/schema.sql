@@ -12,3 +12,17 @@ INSERT INTO users (email, password, role) VALUES
   ('faculty.ai@kongu.edu', 'facultypass', 'FACULTY'),
   ('admin@kongu.edu', 'adminpass', 'ADMIN')
 ON CONFLICT (email) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS chat_conversations (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  conversation_id VARCHAR(100) NOT NULL,
+  title VARCHAR(255) NOT NULL DEFAULT 'New Chat',
+  thread_id VARCHAR(255),
+  messages JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, conversation_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_conversations_user_updated
+  ON chat_conversations(user_id, updated_at DESC);
