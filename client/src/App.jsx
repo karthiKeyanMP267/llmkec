@@ -357,14 +357,7 @@ function parseKeyValueLines(text) {
 
 function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
   const topQuestions = getTopQuestionsByRole(session?.role)
-  const [conversations, setConversations] = useState(() => {
-    try {
-      const saved = localStorage.getItem(`${storagePrefix}-conversations`)
-      return saved ? JSON.parse(saved) : []
-    } catch {
-      return []
-    }
-  })
+  const [conversations, setConversations] = useState([])
   const [currentConvId, setCurrentConvId] = useState(null)
   const [threadId, setThreadId] = useState(null)
   const [messages, setMessages] = useState([])
@@ -373,6 +366,8 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
   const [error, setError] = useState('')
   const [abortController, setAbortController] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [historyLoaded, setHistoryLoaded] = useState(false)
+  const persistTimerRef = useRef(null)
 
   const scrollRef = useAutoScroll(messages.length + (loading ? 1 : 0))
   const composerRef = useRef(null)
@@ -386,24 +381,124 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
     if (composerRef.current) composerRef.current.focus()
   }
 
-  // Persist conversations to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem(`${storagePrefix}-conversations`, JSON.stringify(conversations))
-    } catch (e) {
-      logger.error('Failed to save conversations:', e)
+  const buildAuthHeaders = (base = {}) => {
+    const headers = { ...base }
+    if (session?.role) {
+      headers['X-Role'] = session.role
     }
-  }, [conversations, storagePrefix])
+    if (Array.isArray(session?.allowedServers) && session.allowedServers.length > 0) {
+      headers['X-Allowed-Servers'] = session.allowedServers.join(',')
+    }
+    if (session?.token) {
+      headers.Authorization = `Bearer ${session.token}`
+    }
+    return headers
+  }
 
-  // Save current conversation messages
+  // Load account-scoped chat history from server.
   useEffect(() => {
-    if (!currentConvId || messages.length === 0) return
-    try {
-      localStorage.setItem(`${storagePrefix}-messages-${currentConvId}`, JSON.stringify({ messages, threadId }))
-    } catch (e) {
-      logger.error('Failed to save messages:', e)
+    let active = true
+
+    async function loadHistory() {
+      if (!session?.token) {
+        if (!active) return
+        setConversations([])
+        setCurrentConvId(null)
+        setThreadId(null)
+        setMessages([])
+        setHistoryLoaded(true)
+        return
+      }
+
+      try {
+        const res = await fetch('/api/chat/history', {
+          headers: buildAuthHeaders(),
+        })
+        const data = await res.json().catch(() => null)
+        if (!active) return
+
+        if (!res.ok || !data?.ok) {
+          logger.error('Failed to load chat history:', data?.error || res.status)
+          setConversations([])
+          setCurrentConvId(null)
+          setThreadId(null)
+          setMessages([])
+          setHistoryLoaded(true)
+          return
+        }
+
+        const normalized = Array.isArray(data.conversations)
+          ? data.conversations.map((conv) => ({
+              id: conv.id,
+              title: conv.title || 'New Chat',
+              timestamp: conv.updatedAt || conv.createdAt || new Date().toISOString(),
+              threadId: conv.threadId || null,
+              messages: Array.isArray(conv.messages) ? conv.messages : [],
+            }))
+          : []
+
+        setConversations(normalized)
+      } catch (e) {
+        if (!active) return
+        logger.error('Failed to load chat history:', e)
+        setConversations([])
+        setCurrentConvId(null)
+        setThreadId(null)
+        setMessages([])
+      } finally {
+        if (active) setHistoryLoaded(true)
+      }
     }
-  }, [currentConvId, messages, threadId, storagePrefix])
+
+    loadHistory()
+
+    return () => {
+      active = false
+    }
+  }, [session?.token])
+
+  // Keep active conversation cache in sync with current message stream.
+  useEffect(() => {
+    if (!currentConvId) return
+    setConversations((prev) =>
+      prev.map((conv) => {
+        if (conv.id !== currentConvId) return conv
+        if (conv.messages === messages && (conv.threadId || null) === (threadId || null)) return conv
+        return { ...conv, messages, threadId: threadId || null, timestamp: new Date().toISOString() }
+      }),
+    )
+  }, [currentConvId, messages, threadId])
+
+  // Persist current conversation to server (debounced) so it is shared across devices.
+  useEffect(() => {
+    if (!historyLoaded || !session?.token || !currentConvId) return
+
+    const conv = conversations.find((c) => c.id === currentConvId)
+    if (!conv) return
+
+    if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
+
+    persistTimerRef.current = setTimeout(async () => {
+      try {
+        await fetch('/api/chat/history', {
+          method: 'POST',
+          headers: buildAuthHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({
+            id: conv.id,
+            title: conv.title || 'New Chat',
+            threadId,
+            messages,
+          }),
+        })
+      } catch (e) {
+        logger.error('Failed to persist chat history:', e)
+      }
+    }, 600)
+
+    return () => {
+      if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
+    }
+  }, [historyLoaded, session?.token, currentConvId, conversations, messages, threadId])
 
   // After conversations change, keep the view anchored to the latest message and keep the input reachable.
   useEffect(() => {
@@ -441,7 +536,7 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
       newConvId = convId
       const tempTitle = text.slice(0, 40) + (text.length > 40 ? '...' : '')
       setCurrentConvId(convId)
-      setConversations((prev) => [{ id: convId, title: tempTitle, timestamp: new Date() }, ...prev])
+      setConversations((prev) => [{ id: convId, title: tempTitle, timestamp: new Date().toISOString(), threadId: null, messages: [] }, ...prev])
       isNewConversation = true
     }
 
@@ -602,18 +697,11 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
     setCurrentConvId(convId)
     setError('')
     setSidebarOpen(false)
-    try {
-      const saved = localStorage.getItem(`${storagePrefix}-messages-${convId}`)
-      if (saved) {
-        const data = JSON.parse(saved)
-        setMessages(data.messages || [])
-        setThreadId(data.threadId || null)
-      } else {
-        setMessages([])
-        setThreadId(null)
-      }
-    } catch (e) {
-      logger.error('Failed to load conversation:', e)
+    const conv = conversations.find((c) => c.id === convId)
+    if (conv) {
+      setMessages(Array.isArray(conv.messages) ? conv.messages : [])
+      setThreadId(conv.threadId || null)
+    } else {
       setMessages([])
       setThreadId(null)
     }
@@ -626,11 +714,12 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
   function deleteConversation(convId, e) {
     e.stopPropagation()
     setConversations((prev) => prev.filter((c) => c.id !== convId))
-    try {
-      localStorage.removeItem(`${storagePrefix}-messages-${convId}`)
-    } catch (e) {
-      logger.error('Failed to delete conversation messages:', e)
-    }
+    fetch(`/api/chat/history/${encodeURIComponent(convId)}`, {
+      method: 'DELETE',
+      headers: buildAuthHeaders(),
+    }).catch((err) => {
+      logger.error('Failed to delete conversation from server history:', err)
+    })
     if (currentConvId === convId) {
       newChat()
     }
