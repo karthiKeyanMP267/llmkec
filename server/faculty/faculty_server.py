@@ -1,7 +1,7 @@
 """
 Faculty MCP Server - Query-only ChromaDB server for faculty data.
 
-Exposes read-only tools via FastMCP (SSE transport).
+Exposes read-only tools via FastMCP (Streamable HTTP transport).
 All write/ingestion operations are restricted to the Admin Ingestion API.
 
 Usage:
@@ -85,12 +85,12 @@ def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Faculty Query MCP Server")
     parser.add_argument("--data-dir", default=os.getenv("CHROMA_DATA_DIR", "./faculty_db"),
                         help="Path to ChromaDB persistent storage (default: ./faculty_db)")
-    parser.add_argument("--mcp-host", default=os.getenv("MCP_HOST", "localhost"),
-                        help="Host for the MCP SSE server (default: localhost)")
+    parser.add_argument("--mcp-host", default=os.getenv("MCP_HOST", "127.0.0.1"),
+                        help="Host for the MCP server (default: 127.0.0.1)")
     parser.add_argument("--mcp-port", type=int, default=int(os.getenv("MCP_PORT", "3001")),
-                        help="Port for the MCP SSE server (default: 3001)")
-    parser.add_argument("--transport", choices=["stdio", "sse"], default=os.getenv("MCP_TRANSPORT", "sse"),
-                        help="Transport type (default: sse)")
+                        help="Port for the MCP server (default: 3001)")
+    parser.add_argument("--transport", choices=["stdio", "sse", "http"], default=os.getenv("MCP_TRANSPORT", "http"),
+                        help="Transport type (default: http)")
     return parser
 
 

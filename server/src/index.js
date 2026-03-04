@@ -12,6 +12,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Client as McpClient } from "@modelcontextprotocol/sdk/client";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import logger from "./logger.js";
 
@@ -457,9 +458,18 @@ async function listMcpToolsFromConfig(name, config) {
       return [];
     }
     const headers = config?.headers && typeof config.headers === "object" ? config.headers : undefined;
-    transport = new StreamableHTTPClientTransport(new URL(url), {
-      requestInit: headers ? { headers } : undefined,
-    });
+
+    // Detect SSE endpoints (URL ending in /sse) and use SSEClientTransport for them.
+    const isSSE = /\/sse\/?$/i.test(url.trim());
+    if (isSSE) {
+      transport = new SSEClientTransport(new URL(url), {
+        requestInit: headers ? { headers } : undefined,
+      });
+    } else {
+      transport = new StreamableHTTPClientTransport(new URL(url), {
+        requestInit: headers ? { headers } : undefined,
+      });
+    }
   } else if (config?.type === "local") {
     const cmd = Array.isArray(config?.command) ? config.command : null;
     if (!cmd || cmd.length === 0) {

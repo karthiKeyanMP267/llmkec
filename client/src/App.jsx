@@ -244,13 +244,20 @@ function extractLineItems(text) {
 function renderMessageText(role, text) {
   if (role !== 'assistant') return text
 
+  // Strip raw tool-call XML tags that the LLM may emit when MCP tools fail to execute.
+  // This prevents <tool_call>, <invoke>, <parameter> etc. from being rendered as HTML.
+  let cleaned = String(text || '')
+    .replace(/<\/?(?:tool_call|invoke|parameter|antml:invoke|antml:parameter)[^>]*>/gi, '')
+    .replace(/^\s*[\r\n]+/, '')
+    .trim()
+
   // If the response contains an HTML table, render it directly via markdown
-  if (/<table[\s\S]*?>/i.test(String(text || ''))) {
-    return renderMarkdown(text)
+  if (/<table[\s\S]*?>/i.test(cleaned)) {
+    return renderMarkdown(cleaned)
   }
 
   // Check for JSON payload with structured data
-  const payload = extractJsonPayload(text)
+  const payload = extractJsonPayload(cleaned)
   if (payload) {
     const table = renderStructuredPayload(payload)
     if (table) {
@@ -264,7 +271,7 @@ function renderMessageText(role, text) {
     }
   }
 
-  const boldItems = extractBoldNumberedItems(text)
+  const boldItems = extractBoldNumberedItems(cleaned)
   if (boldItems) {
     return (
       <ul className="formattedList">
@@ -277,7 +284,7 @@ function renderMessageText(role, text) {
     )
   }
 
-  const lineItems = extractLineItems(text)
+  const lineItems = extractLineItems(cleaned)
   if (lineItems) {
     const ListTag = lineItems.type === 'ol' ? 'ol' : 'ul'
     return (
@@ -289,7 +296,7 @@ function renderMessageText(role, text) {
     )
   }
 
-  return renderMarkdown(text)
+  return renderMarkdown(cleaned)
 }
 
 function useAutoScroll(dep) {

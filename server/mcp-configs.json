@@ -1,5 +1,25 @@
 {
   "version": 1,
+  "servers": {
+    "student_server_2024": {
+      "type": "remote",
+      "url": "http://127.0.0.1:3002/mcp",
+      "enabled": true,
+      "timeout": 5000
+    },
+    "faculty_server": {
+      "type": "remote",
+      "url": "http://127.0.0.1:3001/mcp",
+      "enabled": true,
+      "timeout": 5000
+    },
+    "student_server_2022": {
+      "type": "remote",
+      "url": "http://localhost:8000/mcp",
+      "enabled": true,
+      "timeout": 5000
+    }
+  },
   "tools": {
     "bash": false,
     "read": false,
@@ -12,26 +32,5 @@
     "websearch": false,
     "codesearch": false,
     "skill": false
-  },
-  "servers": {
-      "student_server_2024": {
-      "type": "remote",
-      "url": "http://127.0.0.1:3002/mcp",
-      "enabled": true,
-      "timeout": 5000
-    },
-     "faculty_server": {
-      "type":"remote",
-      "url": "http://127.0.0.1:3001/sse",
-      "enabled": true,
-      "timeout": 5000
-    },
-    "student_server_2022": {
-      "type":"remote",
-      "url": "http://localhost:8000/mcp",
-      "enabled": true,
-      "timeout": 5000
-    }
-
-}
+  }
 }

@@ -12,3 +12,8 @@ pycache/
 __pycache__/
 /_pycache_/
 ../__pycache__/
+
+# ChromaDB persistent storage (regenerated via ingestion)
+server/faculty/faculty_db/
+server/student_2024/student_db_2024/
+server/storage/chroma/

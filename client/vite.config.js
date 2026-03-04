@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
+    allowedHosts: ['.ngrok-free.app'],
     proxy: {
       '/api': {
         // Point the web dev server at the running backend API (currently on 4001)
@@ -12,6 +13,13 @@ export default defineConfig({
         changeOrigin: true,
         timeout: 120_000,
         proxyTimeout: 120_000,
+      },
+      '/auth': {
+        // Proxy auth requests so ngrok only needs one tunnel (port 5173)
+        target: process.env.VITE_AUTH_PROXY_URL || 'http://localhost:4005',
+        changeOrigin: true,
+        timeout: 30_000,
+        proxyTimeout: 30_000,
       },
     },
   },

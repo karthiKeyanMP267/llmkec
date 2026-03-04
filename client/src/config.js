@@ -1,4 +1,6 @@
-export const AUTH_URL = import.meta.env.VITE_AUTH_URL || 'http://localhost:9000'
+// When running behind a proxy (ngrok, Vite dev server), use relative paths.
+// Set VITE_AUTH_URL to a full URL only when the auth server is accessed directly.
+export const AUTH_URL = import.meta.env.VITE_AUTH_URL || ''
 export const ADMIN_API_URL = import.meta.env.VITE_ADMIN_API_URL || 'http://localhost:9000'
 export const AUTO_API_URL = import.meta.env.VITE_AUTO_INGEST_URL || 'http://localhost:9000/ingestion'
 
