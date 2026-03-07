@@ -9,17 +9,12 @@ from app.ingestion_api.models.schemas import (
     EmbeddingModelUpdateRequest,
     LlamaParseKeyUpdateRequest,
 )
-from app.ingestion_api.dependencies import require_admin_user
+from app.ingestion_api.dependencies import require_admin_user, get_pipeline
 from app.ingestion_api.utils.logger import get_logger
 
 logger = get_logger("router.config")
 
 router = APIRouter(prefix="/api/v1/config", tags=["Configuration"], dependencies=[Depends(require_admin_user)])
-
-
-def _get_pipeline():
-    from app.main import app
-    return app.state.pipeline
 
 
 @router.get("/", response_model=ConfigResponse)
@@ -34,8 +29,7 @@ async def list_models():
 
 
 @router.put("/embedding-model", response_model=EmbeddingModelInfo)
-async def update_embedding_model(request: EmbeddingModelUpdateRequest):
-    pipeline = _get_pipeline()
+async def update_embedding_model(request: EmbeddingModelUpdateRequest, pipeline=Depends(get_pipeline)):
     try:
         model_info = pipeline.embedding_service.switch_model(request.model_key)
         return EmbeddingModelInfo(**model_info)
@@ -48,8 +42,7 @@ async def update_embedding_model(request: EmbeddingModelUpdateRequest):
 
 
 @router.put("/chunking")
-async def update_chunking(request: ChunkingConfigUpdateRequest):
-    pipeline = _get_pipeline()
+async def update_chunking(request: ChunkingConfigUpdateRequest, pipeline=Depends(get_pipeline)):
     try:
         if request.chunk_size is not None:
             app_config.chunk_size = request.chunk_size
@@ -69,8 +62,7 @@ async def update_chunking(request: ChunkingConfigUpdateRequest):
         return JSONResponse(status_code=400, content={"detail": str(e)})
 
 @router.put("/llamaparse-key")
-async def update_llamaparse_key(request: LlamaParseKeyUpdateRequest):
-    pipeline = _get_pipeline()
+async def update_llamaparse_key(request: LlamaParseKeyUpdateRequest, pipeline=Depends(get_pipeline)):
     try:
         app_config.llama_parse_api_key = request.api_key
         persist = request.persist_to_env if request.persist_to_env is not None else True

@@ -17,3 +17,7 @@ __pycache__/
 server/faculty/faculty_db/
 server/student_2024/student_db_2024/
 server/storage/chroma/
+
+# Any sqlite3 database files (chroma, metadata, etc.)
+*.sqlite3
+**/ingestion_metadata.db

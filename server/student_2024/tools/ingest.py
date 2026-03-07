@@ -62,55 +62,43 @@ logger.info("STEP 1: Resolve paths")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(BASE_DIR)
-DATA_DIR = os.path.join(PROJECT_ROOT, "data/extracted/2024")
 
-logger.info("Data directory: %s", DATA_DIR)
+# Multiple data directories to ingest
+DATA_DIRS = [
+    os.path.join(PROJECT_ROOT, "data/extracted/2024"),  # R2024 regulations
+    os.path.join(PROJECT_ROOT, "data/ocr"),              # R2024 department syllabi
+    os.path.join(PROJECT_ROOT, "data/text"),             # R2022 syllabi
+]
 
-if not os.path.isdir(DATA_DIR):
-    fail("Data directory does not exist")
-
-ok("Data directory exists")
+for data_dir in DATA_DIRS:
+    logger.info("Data directory: %s", data_dir)
+    if not os.path.isdir(data_dir):
+        logger.warning("Directory does not exist: %s", data_dir)
+    else:
+        ok(f"Directory exists: {data_dir}")
 
 
 logger.info("STEP 2: Discover files")
 
-pdf_files = [
-    f for f in os.listdir(DATA_DIR)
-    if f.lower().endswith(".pdf")
-]
+pdf_files = []
+for data_dir in DATA_DIRS:
+    if os.path.isdir(data_dir):
+        dir_pdfs = [f for f in os.listdir(data_dir) if f.lower().endswith(".pdf")]
+        pdf_files.extend(dir_pdfs)
+        logger.info("PDF files in %s: %s", os.path.basename(data_dir), dir_pdfs)
 
-logger.info("PDF files found: %s", pdf_files)
+logger.info("Total PDF files found: %d", len(pdf_files))
 
 if not pdf_files:
-    fail("No PDF files found in data directory")
+    fail("No PDF files found in any data directory")
 
 ok("Found %d PDF file(s)" % len(pdf_files))
 
 
-logger.info("STEP 3: Load documents via PDFReader")
-
-documents: List[Document] = SimpleDirectoryReader(
-    input_dir=DATA_DIR,
-    recursive=True,
-    file_extractor={".pdf": PDFReader()}
-).load_data()
-
-logger.info("Documents loaded: %d", len(documents))
-
-if not documents:
-    fail("PDFReader failed to load documents")
-
-# Optional: inspect first document
-sample = documents[0].text[:300]
-logger.info("Sample document text (first 300 chars):\n%s", sample)
-
-ok("Documents successfully parsed")
-
-
-logger.info("STEP 4: Initialize Chroma vector store")
+logger.info("STEP 3: Initialize Chroma vector store")
 
 CHROMA_PATH = os.path.join(PROJECT_ROOT, "student_db_2024")
-COLLECTION_NAME = "rag_demo"
+COLLECTION_NAME = "student_2024_collection"
 
 client = chromadb.PersistentClient(path=CHROMA_PATH)
 collection = client.get_or_create_collection(COLLECTION_NAME)
@@ -120,32 +108,75 @@ logger.info("Chroma collection name: %s", collection.name)
 ok("Chroma collection ready")
 
 
-logger.info("STEP 5: Build ingestion pipeline")
+logger.info("STEP 4: Build ingestion pipeline")
 
 docstore = SimpleDocumentStore()
-pipeline = IngestionPipeline(
-    transformations=[
-        SentenceSplitter(chunk_size=700, chunk_overlap=300),
-        Settings.embed_model, 
-    ],
-    vector_store=ChromaVectorStore(chroma_collection=collection),
-    docstore=docstore
-)
+
+def create_pipeline():
+    return IngestionPipeline(
+        transformations=[
+            SentenceSplitter(chunk_size=700, chunk_overlap=300),
+            Settings.embed_model, 
+        ],
+        vector_store=ChromaVectorStore(chroma_collection=collection),
+        docstore=docstore
+    )
+
 ok("IngestionPipeline created")
 
 
-logger.info("STEP 6: Run ingestion")
+logger.info("STEP 5: Process each directory")
 
-nodes =pipeline.run(documents=documents)
+BATCH_SIZE = 50  # Process 50 documents at a time
+total_nodes = 0
+total_docs = 0
 
+for dir_idx, data_dir in enumerate(DATA_DIRS):
+    if not os.path.isdir(data_dir):
+        continue
+    
+    dir_name = os.path.basename(data_dir)
+    logger.info("=" * 50)
+    logger.info("Processing directory %d/%d: %s", dir_idx + 1, len(DATA_DIRS), dir_name)
+    
+    # Load documents from this directory
+    try:
+        dir_docs = SimpleDirectoryReader(
+            input_dir=data_dir,
+            recursive=True,
+            file_extractor={".pdf": PDFReader()}
+        ).load_data()
+        logger.info("Loaded %d documents from %s", len(dir_docs), dir_name)
+    except Exception as e:
+        logger.error("Failed to load documents from %s: %s", dir_name, str(e))
+        continue
+    
+    total_docs += len(dir_docs)
+    
+    # Process in batches
+    for i in range(0, len(dir_docs), BATCH_SIZE):
+        batch = dir_docs[i:i + BATCH_SIZE]
+        batch_num = (i // BATCH_SIZE) + 1
+        total_batches = (len(dir_docs) + BATCH_SIZE - 1) // BATCH_SIZE
+        logger.info("[%s] Batch %d/%d (%d docs)...", dir_name, batch_num, total_batches, len(batch))
+        
+        try:
+            pipeline = create_pipeline()
+            nodes = pipeline.run(documents=batch)
+            total_nodes += len(nodes)
+            logger.info("[%s] Batch %d complete: %d nodes", dir_name, batch_num, len(nodes))
+        except Exception as e:
+            logger.error("[%s] Batch %d failed: %s", dir_name, batch_num, str(e))
+            continue
+    
+    ok(f"Directory {dir_name} complete")
 
-ok("Pipeline execution completed")
+ok("All directories processed")
 
-logger.info("Nodes created: %d", len(nodes))
+logger.info("Total documents processed: %d", total_docs)
+logger.info("Total nodes created: %d", total_nodes)
 
-vector_store = ChromaVectorStore(chroma_collection=collection)
-vector_store.add(nodes)
-logger.info("STEP 7: Verify vector count")
+logger.info("STEP 6: Verify vector count")
 
 count = collection.count()
 logger.info("Vector count: %d", count)

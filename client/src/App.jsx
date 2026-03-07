@@ -246,8 +246,11 @@ function renderMessageText(role, text) {
 
   // Strip raw tool-call XML tags that the LLM may emit when MCP tools fail to execute.
   // This prevents <tool_call>, <invoke>, <parameter> etc. from being rendered as HTML.
+  // Also strip bracket-style [TOOL_CALL]...[/TOOL_CALL] format and minimax:tool_call tags.
   let cleaned = String(text || '')
     .replace(/<\/?(?:tool_call|invoke|parameter|antml:invoke|antml:parameter)[^>]*>/gi, '')
+    .replace(/\[TOOL_CALL\][\s\S]*?\[\/TOOL_CALL\]/gi, '')
+    .replace(/<minimax:tool_call>[\s\S]*?<\/minimax:tool_call>/gi, '')
     .replace(/^\s*[\r\n]+/, '')
     .trim()
 
@@ -424,6 +427,13 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
         const data = await res.json().catch(() => null)
         if (!active) return
 
+        if (res.status === 401) {
+          setError('Session expired. Please login again.')
+          if (typeof onLogout === 'function') onLogout()
+          setHistoryLoaded(true)
+          return
+        }
+
         if (!res.ok || !data?.ok) {
           logger.error('Failed to load chat history:', data?.error || res.status)
           setConversations([])
@@ -462,7 +472,7 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
     return () => {
       active = false
     }
-  }, [session?.token])
+  }, [session?.token, onLogout])
 
   // Keep active conversation cache in sync with current message stream.
   useEffect(() => {
@@ -549,6 +559,7 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
 
     const controller = new AbortController()
     setAbortController(controller)
+    let terminalErrorMessage = ''
 
     try {
       const body = { threadId, message: text, mode: 'ask' }
@@ -566,6 +577,13 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
         const errMsg = t || `HTTP ${res.status}`
         logger.error('Chat stream request failed:', errMsg)
         setError(errMsg)
+        terminalErrorMessage = errMsg
+        setMessages((m) => {
+          const next = [...m]
+          const cur = next[assistantIdx]
+          if (cur) next[assistantIdx] = { ...cur, text: errMsg }
+          return next
+        })
         return
       }
 
@@ -611,11 +629,20 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
             (typeof evt.error === 'string' ? evt.error : null) ||
             'Provider/agent error'
           setError(msg)
+          terminalErrorMessage = msg
         }
         if (evt?.type === 'error') {
           const errMsg = evt.error || 'Chat failed'
           logger.error('Chat stream error event:', errMsg)
           setError(errMsg)
+          terminalErrorMessage = errMsg
+          setMessages((m) => {
+            const next = [...m]
+            const cur = next[assistantIdx]
+            if (!cur) return next
+            if (!String(cur.text || '').trim()) next[assistantIdx] = { ...cur, text: errMsg }
+            return next
+          })
           break
         }
         if (evt?.type === 'done') {
@@ -627,7 +654,7 @@ function App({ storagePrefix = 'kec', session = null, onLogout = null }) {
         const next = [...m]
         const cur = next[assistantIdx]
         if (cur && !String(cur.text || '').trim()) {
-          next[assistantIdx] = { ...cur, text: '(no text response)' }
+          next[assistantIdx] = { ...cur, text: terminalErrorMessage || '(no text response)' }
         }
         return next
       })

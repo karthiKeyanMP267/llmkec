@@ -77,7 +77,7 @@ def _resolve_collection_names(client: chromadb.PersistentClient) -> List[str]:
         )
         return []
 
-    default_candidates = [name for name in ("student_2024_ingestion", "student_data_2024", "student_data_2022", "rag_demo") if name in available_set]
+    default_candidates = [name for name in ("student_2024_collection", "student_2024_ingestion", "student_data_2024", "student_data_2022", "rag_demo") if name in available_set]
     if default_candidates:
         return default_candidates
 

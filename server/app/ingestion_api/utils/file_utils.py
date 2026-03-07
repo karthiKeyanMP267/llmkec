@@ -16,12 +16,20 @@ class FileManager:
     def generate_doc_id(self) -> str:
         return str(uuid.uuid4())
 
-    def validate_pdf(self, filename: str, content: bytes) -> Tuple[bool, str]:
-        if not filename.lower().endswith(".pdf"):
-            return False, "Only PDF files are supported"
+    ALLOWED_EXTENSIONS = {".pdf", ".json"}
+
+    def validate_file(self, filename: str, content: bytes) -> Tuple[bool, str]:
+        """Validate an uploaded file (PDF or JSON)."""
+        ext = Path(filename).suffix.lower()
+        if ext not in self.ALLOWED_EXTENSIONS:
+            return False, f"Unsupported file type '{ext}'. Allowed: {', '.join(sorted(self.ALLOWED_EXTENSIONS))}"
         if len(content) == 0:
             return False, "Empty file"
         return True, ""
+
+    def validate_pdf(self, filename: str, content: bytes) -> Tuple[bool, str]:
+        """Validate uploaded file. Accepts PDFs and JSON files."""
+        return self.validate_file(filename, content)
 
     async def save_upload(self, content: bytes, filename: str, doc_id: str) -> str:
         safe_name = filename.replace("/", "_").replace("\\", "_")

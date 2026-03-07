@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 
 from app.ingestion_api.models.schemas import SearchRequest, SearchResponse, SearchResult
-from app.ingestion_api.dependencies import require_admin_user
+from app.ingestion_api.dependencies import require_admin_user, get_pipeline
 from app.ingestion_api.utils.logger import get_logger
 
 logger = get_logger("router.search")
@@ -12,17 +12,12 @@ logger = get_logger("router.search")
 router = APIRouter(prefix="/api/v1/search", tags=["Search"], dependencies=[Depends(require_admin_user)])
 
 
-def _get_pipeline():
-    from app.main import app
-    return app.state.pipeline
-
-
 @router.post("/", response_model=SearchResponse)
 async def search_default(
     request: SearchRequest,
     collection_name: Optional[str] = Query(None),
+    pipeline=Depends(get_pipeline),
 ):
-    pipeline = _get_pipeline()
     from app.ingestion_api.config import app_config
 
     col_name = collection_name or app_config.default_collection
@@ -62,8 +57,7 @@ async def search_default(
 
 
 @router.post("/{collection_name}", response_model=SearchResponse)
-async def search_collection(collection_name: str, request: SearchRequest):
-    pipeline = _get_pipeline()
+async def search_collection(collection_name: str, request: SearchRequest, pipeline=Depends(get_pipeline)):
     if not pipeline.chroma_service.collection_exists(collection_name):
         logger.error("Collection '%s' not found", collection_name)
         return JSONResponse(status_code=404, content={"detail": f"Collection '{collection_name}' not found"})

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
 from app.ingestion_api.models.schemas import (
@@ -8,7 +8,7 @@ from app.ingestion_api.models.schemas import (
     CollectionListResponse,
     CollectionUpdateRequest,
 )
-from app.ingestion_api.dependencies import require_admin_user
+from app.ingestion_api.dependencies import require_admin_user, get_pipeline
 from app.ingestion_api.utils.logger import get_logger
 
 logger = get_logger("router.collections")
@@ -16,14 +16,8 @@ logger = get_logger("router.collections")
 router = APIRouter(prefix="/api/v1/collections", tags=["Collections"], dependencies=[Depends(require_admin_user)])
 
 
-def _get_pipeline():
-    from app.main import app
-    return app.state.pipeline
-
-
 @router.get("/", response_model=CollectionListResponse)
-async def list_collections():
-    pipeline = _get_pipeline()
+async def list_collections(pipeline=Depends(get_pipeline)):
     collections = pipeline.chroma_service.list_collections()
     col_list = [
         CollectionInfo(
@@ -37,8 +31,7 @@ async def list_collections():
 
 
 @router.post("/", response_model=CollectionInfo, status_code=201)
-async def create_collection(request: CollectionCreateRequest):
-    pipeline = _get_pipeline()
+async def create_collection(request: CollectionCreateRequest, pipeline=Depends(get_pipeline)):
     try:
         result = pipeline.chroma_service.create_collection(name=request.name, metadata=request.metadata)
         return CollectionInfo(
@@ -52,8 +45,7 @@ async def create_collection(request: CollectionCreateRequest):
 
 
 @router.get("/{name}", response_model=CollectionInfo)
-async def get_collection(name: str):
-    pipeline = _get_pipeline()
+async def get_collection(name: str, pipeline=Depends(get_pipeline)):
     if not pipeline.chroma_service.collection_exists(name):
         logger.error("Collection '%s' not found", name)
         return JSONResponse(status_code=404, content={"detail": f"Collection '{name}' not found"})
@@ -67,8 +59,7 @@ async def get_collection(name: str):
 
 
 @router.put("/{name}", response_model=CollectionInfo)
-async def update_collection(name: str, request: CollectionUpdateRequest):
-    pipeline = _get_pipeline()
+async def update_collection(name: str, request: CollectionUpdateRequest, pipeline=Depends(get_pipeline)):
     if not pipeline.chroma_service.collection_exists(name):
         logger.error("Collection '%s' not found", name)
         return JSONResponse(status_code=404, content={"detail": f"Collection '{name}' not found"})
@@ -92,8 +83,7 @@ async def update_collection(name: str, request: CollectionUpdateRequest):
 
 
 @router.delete("/{name}", response_model=CollectionDeleteResponse)
-async def delete_collection(name: str):
-    pipeline = _get_pipeline()
+async def delete_collection(name: str, pipeline=Depends(get_pipeline)):
     if not pipeline.chroma_service.collection_exists(name):
         logger.error("Collection '%s' not found for deletion", name)
         return JSONResponse(status_code=404, content={"detail": f"Collection '{name}' not found"})
@@ -106,8 +96,7 @@ async def delete_collection(name: str):
 
 
 @router.post("/{name}/reset", response_model=CollectionDeleteResponse)
-async def reset_collection(name: str):
-    pipeline = _get_pipeline()
+async def reset_collection(name: str, pipeline=Depends(get_pipeline)):
     if not pipeline.chroma_service.collection_exists(name):
         logger.error("Collection '%s' not found for reset", name)
         return JSONResponse(status_code=404, content={"detail": f"Collection '{name}' not found"})

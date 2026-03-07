@@ -19,6 +19,26 @@ logger = get_logger(__name__)
 _bearer = HTTPBearer(auto_error=False)
 
 
+# ---------------------------------------------------------------------------
+# Pipeline / FileManager dependency helpers
+# ---------------------------------------------------------------------------
+
+def get_pipeline(request: Request):
+    """Return the IngestionPipeline attached to the current (sub-)app."""
+    pipeline = getattr(request.app.state, "pipeline", None)
+    if pipeline is None:
+        raise HTTPException(status_code=503, detail="Ingestion pipeline not initialized")
+    return pipeline
+
+
+def get_file_manager(request: Request):
+    """Return the FileManager attached to the current (sub-)app."""
+    fm = getattr(request.app.state, "file_manager", None)
+    if fm is None:
+        raise HTTPException(status_code=503, detail="File manager not initialized")
+    return fm
+
+
 def _b64url_decode(val: str) -> bytes:
     padding = '=' * (-len(val) % 4)
     return base64.urlsafe_b64decode(val + padding)

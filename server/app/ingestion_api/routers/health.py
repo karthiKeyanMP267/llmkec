@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, Request
 
 from app.ingestion_api.config import app_config
 from app.ingestion_api.models.schemas import HealthResponse
@@ -9,14 +9,13 @@ logger = get_logger("router.health")
 router = APIRouter(tags=["Health"])
 
 
-def _get_pipeline():
-    from app.main import app
-    return getattr(app.state, "pipeline", None)
+def _get_pipeline_optional(request: Request):
+    """Return the pipeline or None – health endpoint must not fail if pipeline is absent."""
+    return getattr(request.app.state, "pipeline", None)
 
 
 @router.get("/health", response_model=HealthResponse)
-async def healthcheck():
-    pipeline = _get_pipeline()
+async def healthcheck(pipeline=Depends(_get_pipeline_optional)):
     chroma_ok = False
     collections_count = 0
 

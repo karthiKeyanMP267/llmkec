@@ -16,13 +16,13 @@ class DocumentMetadata(BaseModel):
     total_chunks: int = Field(0)
     total_pages: int = Field(0)
     file_size_bytes: int = Field(0)
-    embedding_model: str = Field(...)
-    chunk_size: int = Field(...)
-    chunk_overlap: int = Field(...)
+    embedding_model: Optional[str] = Field(None)
+    chunk_size: int = Field(0)
+    chunk_overlap: int = Field(0)
     status: IngestionStatus = Field(IngestionStatus.PENDING)
     error_message: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
 
 
 class DocumentUploadResponse(BaseModel):
