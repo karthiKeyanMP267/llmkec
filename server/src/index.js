@@ -25,8 +25,8 @@ const OPENCODE_STARTUP_TIMEOUT_MS = Number(process.env.OPENCODE_STARTUP_TIMEOUT_
 // By default we eager-start OpenCode so the first chat doesn't pay cold-start cost.
 // Set OPENCODE_EAGER_START=0 to disable.
 const OPENCODE_EAGER_START = 1;
-const CHAT_DEFAULT_PROVIDER_ID = process.env.CHAT_DEFAULT_PROVIDER_ID || "opencode";
-const CHAT_DEFAULT_MODEL_ID = process.env.CHAT_DEFAULT_MODEL_ID || "kimi-k2.5-free";
+const CHAT_DEFAULT_PROVIDER_ID = process.env.CHAT_DEFAULT_PROVIDER_ID || "openai";
+const CHAT_DEFAULT_MODEL_ID = process.env.CHAT_DEFAULT_MODEL_ID || "gpt-4o-mini";
 const AUTH_JWT_SECRET = process.env.AUTH_JWT_SECRET || "dev-secret-change-me";
 const AUTH_JWT_ISS = process.env.AUTH_JWT_ISS || "kec-auth";
 

@@ -8,7 +8,15 @@ CREATE TABLE IF NOT EXISTS users (
 
 
 INSERT INTO users (email, password, role) VALUES
-  ('student.23aid@kongu.edu', 'studentpass', 'STUDENT'),
+  ('jegan.23aid@kongu.edu', 'studentpass', 'STUDENT'),
+  ('rakshetha.23aid@kongu.edu', 'studentpass', 'STUDENT'),
+  ('karthikeyan.23aid@kongu.edu', 'studentpass', 'STUDENT'),
+  ('vijay.23aid@kongu.edu', 'studentpass', 'STUDENT'),
+  ('mithula.23aid@kongu.edu', 'studentpass', 'STUDENT'),
+  ('nandhini.23aid@kongu.edu', 'studentpass', 'STUDENT'),
+  ('santhosh.23aid@kongu.edu', 'studentpass', 'STUDENT'),
+  ('janathi.23aid@kongu.edu', 'studentpass', 'STUDENT'),
+  ('jayabrundha.23aid@kongu.edu', 'studentpass', 'STUDENT'),
   ('faculty.ai@kongu.edu', 'facultypass', 'FACULTY'),
   ('admin@kongu.edu', 'adminpass', 'ADMIN')
 ON CONFLICT (email) DO NOTHING;
